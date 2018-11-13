@@ -1,17 +1,120 @@
 import json
-
 import requests
+import logging
+
+"""
+based on https://github.com/m301/py-gitea
+"""
+
+class Organization:
+
+    ORG_REQUEST = """/orgs/%s""" #<org>
+    ORG_REPOS_REQUEST = """/orgs/%s/repos""" #<org>
+    ORG_TEAMS_REQUEST = """/orgs/%s/teams""" #<org>
+
+    def __init__(self, gitea, orgName : str):
+        self.gitea = gitea
+        self.__initialize_org(orgName)
+
+    def get_repositories(self):
+        result = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST%self.name)
+        return [Repository(self.gitea, self, r["name"]) for r in result]
+
+    def get_teams(self):
+        result = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.name)
+        print(result)
+        raise Exception("TODO")
+
+    def __initialize_org(self, orgName: str) -> None:
+        result = self.gitea.requests_get(Organization.ORG_REQUEST%orgName)
+        if result == {}:
+            logging.error("No Organization found: %s" % orgName)
+            raise Exception("Organization %s not found!"%orgName)
+        logging.info("Found Orgranization: %s"%orgName)
+        self.name = orgName
+        self.description = result["description"]
+        self.id = result["id"]
+
+class User:
+
+    USER_REQUEST = """/users/%s""" #<org>
+    USER_REPOS_REQUEST = """/users/%s/repos""" #<org>
+    ADMIN_CREATE_USER = """/admin/users"""
+
+    def __init__(self, gitea, userName : str):
+        self.gitea = gitea
+        self.__initialize_user(userName)
+
+    def get_repositories(self):
+        result = self.gitea.requests_get(User.USER_REPOS_REQUEST%self.name)
+        return [Repository(self.gitea, self, r["name"]) for r in result]
+
+    def __initialize_user(self, userName: str) -> None:
+        result = self.gitea.requests_get(User.USER_REQUEST % userName)
+        if result == {}:
+            logging.error("No User found: %s" % userName)
+            raise Exception("User %s not found!"%userName)
+        logging.info("Found User: %s"%userName)
+        self.name = userName
+        self.id = result["id"]
+
+    @staticmethod
+    def create_user(gitea, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0):
+        result = gitea.requests_post(User.ADMIN_CREATE_USER,
+            data={'source_id': sourceId, 'login_name': userName, 'username': userName, 'full_name': fullName,
+            'email': email, 'password': password, 'send_notify': sendNotify})
+        if "id" in result:
+            logging.info("Successfully created User %s (id %s)"%(result["login"], result["id"]))
+        else:
+            logging.error(result["message"])
+            raise Exception("User not created... (gitea: %s)"%(userName, result["message"]))
+        return User(gitea, userName)
+
+class Repository:
+
+    REPO_REQUEST = """/repos/%s/%s"""   #<username>,<reponame>
+    ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <username>
+
+    def __init__(self, gitea, repoOwner, repoName: str):
+        self.gitea = gitea
+        self.__initialize_repo(repoOwner, repoName)
+
+    def __initialize_repo(self, repoOwner, repoName: str):
+        result = self.gitea.requests_get(Repository.REPO_REQUEST % (repoOwner.name,repoName))
+        if result == []:
+            logging.error("No Repository found: %s/%s" % (repoOwner.name, repoName))
+            raise Exception("No Repository found: %s/%s" % (repoOwner.name, repoName))
+        logging.info("Found Repository: %s/%s" % (repoOwner.name, repoName))
+        self.name = repoName
+        self.owner = repoOwner
+
+    @staticmethod
+    def create_repo(gitea, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
+        assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
+        result = gitea.requests_post( Repository.ADMIN_REPO_CREATE%repoOwner.name,
+            data={'name': repoName, 'description': description, 'private': private,
+                                              'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
+        if "id" in result:
+            logging.info("Successfully created Repository %s "%(result["name"]))
+        else:
+            logging.error(result["message"])
+            raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
+        return Repository(gitea, repoOwner, repoName)
 
 
 class GITEA():
+
+    """
+    @:param url: url of Gitea server without  .../api/<version>
+    """
     def __init__(self, url, token):
         self.headers = {"Authorization": "token " + token}
         self.url = url
         self.requests = requests
 
     def get_url(self, endpoint):
-        url = self.url + endpoint
-        print(url)
+        url = self.url + "/api/v1" + endpoint
+        logging.info(url)
         return url
 
     def parse_result(self, result):
@@ -31,10 +134,6 @@ class GITEA():
 
     def get_users_gpg_keys(self, username):
         path = '/users/' + username + '/gpg_keys'
-        return self.requests_get(path)
-
-    def get_orgs_repos(self, orgname):
-        path = '/orgs/' + orgname + '/repos'
         return self.requests_get(path)
 
     def put_user_starred(self, username, reponame):
@@ -61,8 +160,12 @@ class GITEA():
         path = '/repos/' + username + '/' + reponame
         return self.requests_get(path)
 
-    def get_users_repos(self, username):
-        path = '/users/' + username + '/repos'
+    def get_repos_branches(self, username, reponame):
+        path = '/repos/' + username + '/' + reponame + '/branches'
+        return self.requests_get(path)
+
+    def get_repos_branch(self, owner, repo, ref):
+        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
         return self.requests_get(path)
 
     def post_repos__mirror_sync(self, username, reponame):
@@ -97,6 +200,7 @@ class GITEA():
     def delete_repos_hooks(self, username, reponame, id):
         path = '/repos/' + username + '/' + reponame + '/hooks/' + id
         return self.requests.delete(path)
+
 
     def get_users_keys(self, username):
         path = '/users/' + username + '/keys'
@@ -187,12 +291,6 @@ class GITEA():
         path = '/repos/' + owner + '/' + repo + '/forks'
         return self.requests_get(path)
 
-    def post_admin_users(self, source_id, login_name, username, full_name, email, password, send_notify):
-        path = '/admin/users'
-        return self.requests_post(path, data={'source_id': source_id, 'login_name': login_name, 'username': username,
-                                              'full_name': full_name, 'email': email, 'password': password,
-                                              'send_notify': send_notify})
-
     def get_user_starred_all(self):
         path = '/user/starred'
         return self.requests_get(path)
@@ -245,12 +343,6 @@ class GITEA():
         path = '/user/followers'
         return self.requests_get(path)
 
-    def post_admin_users_repos(self, name, description, private, auto_init, gitignores, license, readme, username):
-        path = '/admin/users/' + username + '/repos'
-        return self.requests_post(path, data={'name': name, 'description': description, 'private': private,
-                                              'auto_init': auto_init, 'gitignores': gitignores, 'license': license,
-                                              'readme': readme})
-
     def patch_orgs_hooks(self, config, events, active, orgname, id):
         path = '/orgs/' + orgname + '/hooks/' + id
         return self.requests.patch(path)
@@ -297,10 +389,6 @@ class GITEA():
         return self.requests_post(path, data={'name': name, 'description': description, 'private': private,
                                               'auto_init': auto_init, 'gitignores': gitignores, 'license': license,
                                               'readme': readme})
-
-    def get_user_repos(self, ):
-        path = '/user/repos'
-        return self.requests_get(path)
 
     def delete_user_gpg_keys(self, id):
         path = '/user/gpg_keys/' + id
