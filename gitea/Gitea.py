@@ -2,9 +2,6 @@ import json
 import requests
 import logging
 
-"""
-based on https://github.com/m301/py-gitea
-"""
 
 class Organization:
 
@@ -102,7 +99,7 @@ class Repository:
         return Repository(gitea, repoOwner, repoName)
 
 
-class GITEA():
+class Gitea():
 
     """
     @:param url: url of Gitea server without  .../api/<version>
