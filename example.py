@@ -1,6 +1,7 @@
 from gitea import *
 
 gitea = Gitea("https://test-gitea.something", "api-token")
+print(gitea.get_version())
 
 ##create Organization that does exist
 org = Organization(gitea, "existing-organization")

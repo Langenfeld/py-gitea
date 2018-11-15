@@ -36,7 +36,7 @@ class User:
 
     USER_REQUEST = """/users/%s""" #<org>
     USER_REPOS_REQUEST = """/users/%s/repos""" #<org>
-    ADMIN_CREATE_USER = """/admin/users"""
+
 
     def __init__(self, gitea, userName : str):
         self.gitea = gitea
@@ -56,11 +56,9 @@ class User:
         self.id = result["id"]
 
 
-
 class Repository:
 
     REPO_REQUEST = """/repos/%s/%s"""   #<ownername>,<reponame>
-    ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
     REPO_SEARCH ="""/repos/search/%s""" # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches""" #<owner>, <reponame>
 
@@ -84,6 +82,7 @@ class Repository:
             raise Exception("No Branches found: %s/%s" % (self.owner.name, self.name))
         return [Branch(self, result["name"]) for result in results]
 
+
 class Branch:
 
     def __init__(self, repo: Repository, name: str):
@@ -91,7 +90,16 @@ class Branch:
         self.name = name
 
 
+    def get_repos_branch(self, owner, repo, ref):
+        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
+        return self.requests_get(path)
+
+
 class Gitea():
+
+    ADMIN_CREATE_USER = """/admin/users"""
+    ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
+    GITEA_VERSION = """/version"""
 
     """
     @:param url: url of Gitea server without  .../api/<version>
@@ -131,11 +139,6 @@ class Gitea():
 
     def get_user_starred(self, username, reponame):
         path = '/user/starred/' + username + '/' + reponame
-        return self.requests_get(path)
-
-
-    def get_repos_branch(self, owner, repo, ref):
-        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
         return self.requests_get(path)
 
     def get_users_search(self, ):
@@ -377,11 +380,11 @@ class Gitea():
         return self.requests_get(path)
 
     def get_version(self):
-        path = '/version'
-        return self.requests_get(path)
+        result = self.requests_get(Gitea.GITEA_VERSION)
+        return result["version"]
 
     def create_user(self, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0):
-        result = self.requests_post(User.ADMIN_CREATE_USER,
+        result = self.requests_post(Gitea.ADMIN_CREATE_USER,
             data={'source_id': sourceId, 'login_name': userName, 'username': userName, 'full_name': fullName,
             'email': email, 'password': password, 'send_notify': sendNotify})
         if "id" in result:
@@ -393,7 +396,7 @@ class Gitea():
 
     def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
         assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
-        result = self.requests_post(Repository.ADMIN_REPO_CREATE%repoOwner.name,
+        result = self.requests_post(Gitea.ADMIN_REPO_CREATE%repoOwner.name,
             data={'name': repoName, 'description': description, 'private': private,
                                               'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
         if "id" in result:
