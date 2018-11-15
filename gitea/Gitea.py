@@ -9,51 +9,48 @@ class Organization:
     ORG_REPOS_REQUEST = """/orgs/%s/repos""" #<org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams""" #<org>
 
-    def __init__(self, gitea, orgName : str):
+    def __init__(self, gitea, orgName : str, initJson: json = None):
         self.gitea = gitea
-        self.__initialize_org(orgName)
+        self.__initialize_org(orgName, initJson)
 
     def get_repositories(self):
-        result = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST%self.name)
-        return [Repository(self.gitea, self, r["name"]) for r in result]
+        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST%self.username)
+        return [Repository(self.gitea, self, result["name"], initJson=result) for result in results]
 
     def get_teams(self):
-        result = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.name)
-        print(result)
-        raise Exception("TODO")
+        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.username)
+        return [Team(self, result["name"], initJson=result) for result in results]
 
-    def __initialize_org(self, orgName: str) -> None:
-        result = self.gitea.requests_get(Organization.ORG_REQUEST%orgName)
+    def __initialize_org(self, orgName: str, result) -> None:
+        if not result:
+            result = self.gitea.requests_get(Organization.ORG_REQUEST%orgName)
         if result == {}:
             logging.error("No Organization found: %s" % orgName)
             raise Exception("Organization %s not found!"%orgName)
         logging.info("Found Orgranization: %s"%orgName)
-        self.name = orgName
-        self.description = result["description"]
-        self.id = result["id"]
+        for i,v in result.items(): setattr(self, i, v)
 
 class User:
 
     USER_REQUEST = """/users/%s""" #<org>
     USER_REPOS_REQUEST = """/users/%s/repos""" #<org>
 
-
-    def __init__(self, gitea, userName : str):
+    def __init__(self, gitea, userName : str, initJson: json = None):
         self.gitea = gitea
-        self.__initialize_user(userName)
+        self.__initialize_user(userName, initJson)
 
     def get_repositories(self):
-        result = self.gitea.requests_get(User.USER_REPOS_REQUEST%self.name)
-        return [Repository(self.gitea, self, r["name"]) for r in result]
+        result = self.gitea.requests_get(User.USER_REPOS_REQUEST%self.username)
+        return [Repository(self.gitea, self.username, r["name"]) for r in result]
 
-    def __initialize_user(self, userName: str) -> None:
-        result = self.gitea.requests_get(User.USER_REQUEST % userName)
+    def __initialize_user(self, userName: str, result) -> None:
+        if not result:
+            result = self.gitea.requests_get(User.USER_REQUEST % userName)
         if result == {}:
             logging.error("No User found: %s" % userName)
             raise Exception("User %s not found!"%userName)
         logging.info("Found User: %s"%userName)
-        self.name = userName
-        self.id = result["id"]
+        for i, v in result.items(): setattr(self, i, v)
 
 
 class Repository:
@@ -62,37 +59,64 @@ class Repository:
     REPO_SEARCH ="""/repos/search/%s""" # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches""" #<owner>, <reponame>
 
-    def __init__(self, gitea, repoOwner, repoName: str):
+    def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         self.gitea = gitea
-        self.__initialize_repo(repoOwner, repoName)
+        self.__initialize_repo(repoOwner, repoName, initJson)
 
-    def __initialize_repo(self, repoOwner, repoName: str):
-        result = self.gitea.requests_get(Repository.REPO_REQUEST % (repoOwner.name,repoName))
-        if result == []:
-            logging.error("No Repository found: %s/%s" % (repoOwner.name, repoName))
-            raise Exception("No Repository found: %s/%s" % (repoOwner.name, repoName))
-        logging.info("Found Repository: %s/%s" % (repoOwner.name, repoName))
-        self.name = repoName
+    def __initialize_repo(self, repoOwner, repoName: str, result):
+        if not result:
+            result = self.gitea.requests_get(Repository.REPO_REQUEST % (repoOwner.username,repoName))
+        if result == {}:
+            logging.error("No Repository found: %s/%s" % (repoOwner.username, repoName))
+            raise Exception("No Repository found: %s/%s" % (repoOwner.username, repoName))
+        logging.info("Found Repository: %s/%s" % (repoOwner.username, repoName))
+        for i, v in result.items(): setattr(self, i, v)
         self.owner = repoOwner
 
     def get_branches(self):
-        results = self.gitea.requests_get(Repository.REPO_BRANCHES%(self.owner.name, self.name))
+        results = self.gitea.requests_get(Repository.REPO_BRANCHES%(self.owner.username, self.name))
         if results == []:
-            logging.error("No Branches found: %s/%s" % (self.owner.name, self.name))
-            raise Exception("No Branches found: %s/%s" % (self.owner.name, self.name))
-        return [Branch(self, result["name"]) for result in results]
+            logging.error("No Branches found: %s/%s" % (self.owner.username, self.name))
+            raise Exception("No Branches found: %s/%s" % (self.owner.username, self.name))
+        return [Branch(self, result["name"], result) for result in results]
 
 
 class Branch:
 
-    def __init__(self, repo: Repository, name: str):
-        self.repo = repo
-        self.name = name
+    REPO_BRANCH = """/repos/%s/%s/branches/%s""" # <owner>, <repo>, <ref>
 
+    def __init__(self, repo: Repository, name: str, initJson: json = None):
+        self.gitea = repo.gitea
+        self.__initialize_branch(repo, name, initJson)
 
-    def get_repos_branch(self, owner, repo, ref):
-        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
-        return self.requests_get(path)
+    def __initialize_branch(self,repository, name, result):
+        if not result:
+            result = self.gitea.requests_get(Branch.REPO_BRANCH %
+                                             (repository.owner.username,repository.name, name))
+        if result == {}:
+            msg = "No Branch found: %s/%s/%s"%(repository.owner.username,repository.name, name)
+            logging.error(msg)
+            raise Exception(msg)
+        logging.info("Branch found: %s/%s/%s" % (repository.owner.username,repository.name, name))
+        for i, v in result.items(): setattr(self, i, v)
+        self.repository = repository
+
+class Team:
+
+    def __init__(self, org: Organization, name: str, initJson: json = None):
+        self.gitea = org.gitea
+        self.__initialize_repo(org, name, initJson)
+
+    def __initialize_repo(self, org, name, result):
+        if not result:
+            raise NotImplementedError("TODO")
+        if result == {}:
+            msg = "No Team found: %s/%s"%(org.username, name)
+            logging.error(msg)
+            raise Exception(msg)
+        logging.info("Team found: %s/%s" % (org.username, name))
+        for i, v in result.items(): setattr(self, i, v)
+        self.organization = org
 
 
 class Gitea():
@@ -379,6 +403,8 @@ class Gitea():
         path = '/user/gpg_keys/' + id
         return self.requests_get(path)
 
+    # # #
+
     def get_version(self):
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
@@ -392,11 +418,11 @@ class Gitea():
         else:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)"%result["message"])
-        return User(self, userName)
+        return User(self, userName, result)
 
     def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
         assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
-        result = self.requests_post(Gitea.ADMIN_REPO_CREATE%repoOwner.name,
+        result = self.requests_post(Gitea.ADMIN_REPO_CREATE%repoOwner.username,
             data={'name': repoName, 'description': description, 'private': private,
                                               'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
         if "id" in result:
@@ -404,4 +430,4 @@ class Gitea():
         else:
             logging.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
-        return Repository(self, repoOwner, repoName)
+        return Repository(self, repoOwner, repoName, result)
