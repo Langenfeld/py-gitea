@@ -55,22 +55,14 @@ class User:
         self.name = userName
         self.id = result["id"]
 
-    @staticmethod
-    def create_user(gitea, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0):
-        result = gitea.requests_post(User.ADMIN_CREATE_USER,
-            data={'source_id': sourceId, 'login_name': userName, 'username': userName, 'full_name': fullName,
-            'email': email, 'password': password, 'send_notify': sendNotify})
-        if "id" in result:
-            logging.info("Successfully created User %s (id %s)"%(result["login"], result["id"]))
-        else:
-            logging.error(result["message"])
-            raise Exception("User not created... (gitea: %s)"%(userName, result["message"]))
-        return User(gitea, userName)
+
 
 class Repository:
 
-    REPO_REQUEST = """/repos/%s/%s"""   #<username>,<reponame>
-    ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <username>
+    REPO_REQUEST = """/repos/%s/%s"""   #<ownername>,<reponame>
+    ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
+    REPO_SEARCH ="""/repos/search/%s""" # <reponame>
+    REPO_BRANCHES = """/repos/%s/%s/branches""" #<owner>, <reponame>
 
     def __init__(self, gitea, repoOwner, repoName: str):
         self.gitea = gitea
@@ -85,18 +77,18 @@ class Repository:
         self.name = repoName
         self.owner = repoOwner
 
-    @staticmethod
-    def create_repo(gitea, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
-        assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
-        result = gitea.requests_post( Repository.ADMIN_REPO_CREATE%repoOwner.name,
-            data={'name': repoName, 'description': description, 'private': private,
-                                              'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
-        if "id" in result:
-            logging.info("Successfully created Repository %s "%(result["name"]))
-        else:
-            logging.error(result["message"])
-            raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
-        return Repository(gitea, repoOwner, repoName)
+    def get_branches(self):
+        results = self.gitea.requests_get(Repository.REPO_BRANCHES%(self.owner.name, self.name))
+        if results == []:
+            logging.error("No Branches found: %s/%s" % (self.owner.name, self.name))
+            raise Exception("No Branches found: %s/%s" % (self.owner.name, self.name))
+        return [Branch(self, result["name"]) for result in results]
+
+class Branch:
+
+    def __init__(self, repo: Repository, name: str):
+        self.repo = repo
+        self.name = name
 
 
 class Gitea():
@@ -125,10 +117,6 @@ class Gitea():
     def requests_post(self, endpoint, data):
         return self.parse_result(self.requests.post(self.get_url(endpoint), headers=self.headers, data=data))
 
-    def get_repos_search(self, q, uid, limit):
-        path = '/repos/search'
-        return self.requests_get(path)
-
     def get_users_gpg_keys(self, username):
         path = '/users/' + username + '/gpg_keys'
         return self.requests_get(path)
@@ -145,6 +133,11 @@ class Gitea():
         path = '/user/starred/' + username + '/' + reponame
         return self.requests_get(path)
 
+
+    def get_repos_branch(self, owner, repo, ref):
+        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
+        return self.requests_get(path)
+
     def get_users_search(self, ):
         path = '/users/search'
         return self.requests_get(path)
@@ -152,18 +145,6 @@ class Gitea():
     def delete_repos(self, username, reponame):
         path = '/repos/' + username + '/' + reponame
         return self.requests.delete(path)
-
-    def get_repos(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame
-        return self.requests_get(path)
-
-    def get_repos_branches(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame + '/branches'
-        return self.requests_get(path)
-
-    def get_repos_branch(self, owner, repo, ref):
-        path = '/repos/' + owner + '/' + repo + '/branches/' + ref
-        return self.requests_get(path)
 
     def post_repos__mirror_sync(self, username, reponame):
         path = '/repos/' + username + '/' + reponame + '/mirror-sync'
@@ -398,3 +379,26 @@ class Gitea():
     def get_version(self):
         path = '/version'
         return self.requests_get(path)
+
+    def create_user(self, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0):
+        result = self.requests_post(User.ADMIN_CREATE_USER,
+            data={'source_id': sourceId, 'login_name': userName, 'username': userName, 'full_name': fullName,
+            'email': email, 'password': password, 'send_notify': sendNotify})
+        if "id" in result:
+            logging.info("Successfully created User %s (id %s)"%(result["login"], result["id"]))
+        else:
+            logging.error(result["message"])
+            raise Exception("User not created... (gitea: %s)"%result["message"])
+        return User(self, userName)
+
+    def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
+        assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
+        result = self.requests_post(Repository.ADMIN_REPO_CREATE%repoOwner.name,
+            data={'name': repoName, 'description': description, 'private': private,
+                                              'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
+        if "id" in result:
+            logging.info("Successfully created Repository %s "%(result["name"]))
+        else:
+            logging.error(result["message"])
+            raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
+        return Repository(self, repoOwner, repoName)

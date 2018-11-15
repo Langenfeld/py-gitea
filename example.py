@@ -26,12 +26,15 @@ print("org " + org.name + " has repositories " + str(repos))
 ##get repositories of a user
 userRepos = user.get_repositories()
 print("user " + user.name + " has repositories " + str(repos))
+##get branches of repository
+repo = Repository(gitea, org ,"playground")
+print([b.name for b in repo.get_branches()])
 
 ##create User
-user2 = User.create_user(gitea, "torben-teststudent", "email@e-mail.de", "Torben der Teststudent", "testABCDEF",sendNotify=False)
+user2 = gitea.create_user("torben-teststudent", "email@e-mail.de", "Torben der Teststudent", "testABCDEF",sendNotify=False)
 print(user2.name)
 
 ##create Repository
-Repository.create_repo(gitea, user , "test-repo-api", "this is an api test repo, delete this", True, True)
-Repository.create_repo(gitea, org , "test-repo-api-org", "this is an api test repo, delete this", True, True)
+gitea.create_repo(user , "test-repo-api", "this is an api test repo, delete this", True, True)
+gitea.create_repo(org , "test-repo-api-org", "this is an api test repo, delete this", True, True)
 
