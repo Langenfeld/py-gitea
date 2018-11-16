@@ -1,39 +1,37 @@
 from gitea import *
 
 gitea = Gitea("https://test-gitea.something", "api-token")
-print(gitea.get_version())
+print("Gitea Version: " + gitea.get_version())
+print("API-Token belongs to user: " + gitea.get_user().username)
 
 ##create Organization that does exist
-org = Organization(gitea, "existing-organization")
-print(org.name)
+org = Organization(gitea, "an-org")
+print(org.username)
+org.set_value({"location": "a-place"})
 ##create organization that does not exist
 try:
-    org = Organization(gitea, "non-existing-organization")
+    org = Organization(gitea, "non-existent-org")
 except:
     pass
 
 ##create a User that does exist
-user = User(gitea, "existing-username")
-print(user.name)
+user = User(gitea, "a-user")
+print(user.username)
 ##create organization that does not exist
 try:
-    org = User(gitea, "non-existing-username")
+    user = User(gitea, "non-existent-user")
 except:
     pass
-
+user.set_value(user.email, {"location": "an-location"})
 ##get repositories set under a organization
 repos = org.get_repositories()
-print("org " + org.name + " has repositories " + str(repos))
+print("org " + org.username + " has repositories " + str(repos))
 ##get repositories of a user
 userRepos = user.get_repositories()
-print("user " + user.name + " has repositories " + str(repos))
-##get branches of repository
-repo = Repository(gitea, org ,"playground")
+print("user " + user.username + " has repositories " + str(repos))
+##get branches
+repo = Repository(gitea, org  ,"playground")
 print([b.name for b in repo.get_branches()])
-
-##create User
-user2 = gitea.create_user("torben-teststudent", "email@e-mail.de", "Torben der Teststudent", "testABCDEF",sendNotify=False)
-print(user2.name)
 
 ##create Repository
 gitea.create_repo(user , "test-repo-api", "this is an api test repo, delete this", True, True)

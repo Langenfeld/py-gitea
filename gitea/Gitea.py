@@ -8,9 +8,11 @@ class Organization:
     ORG_REQUEST = """/orgs/%s""" #<org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos""" #<org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams""" #<org>
+    ORG_PATCH = """/orgs/%s""" #<org>
 
     def __init__(self, gitea, orgName : str, initJson: json = None):
         self.gitea = gitea
+        self.username = "UNINIT"
         self.__initialize_org(orgName, initJson)
 
     def get_repositories(self):
@@ -24,19 +26,22 @@ class Organization:
     def __initialize_org(self, orgName: str, result) -> None:
         if not result:
             result = self.gitea.requests_get(Organization.ORG_REQUEST%orgName)
-        if result == {}:
-            logging.error("No Organization found: %s" % orgName)
-            raise Exception("Organization %s not found!"%orgName)
         logging.info("Found Orgranization: %s"%orgName)
         for i,v in result.items(): setattr(self, i, v)
+
+    def set_value(self, values: dict):
+        result = self.gitea.requests_patch(Organization.ORG_PATCH%self.username, data=values)
+        self.__initialize_org(self.username, result)
 
 class User:
 
     USER_REQUEST = """/users/%s""" #<org>
     USER_REPOS_REQUEST = """/users/%s/repos""" #<org>
+    USER_PATCH = """/admin/users/%s"""
 
     def __init__(self, gitea, userName : str, initJson: json = None):
         self.gitea = gitea
+        self.username = "UNINIT"
         self.__initialize_user(userName, initJson)
 
     def get_repositories(self):
@@ -46,11 +51,14 @@ class User:
     def __initialize_user(self, userName: str, result) -> None:
         if not result:
             result = self.gitea.requests_get(User.USER_REQUEST % userName)
-        if result == {}:
-            logging.error("No User found: %s" % userName)
-            raise Exception("User %s not found!"%userName)
         logging.info("Found User: %s"%userName)
         for i, v in result.items(): setattr(self, i, v)
+
+    def set_value(self, email: str, values: dict):
+        #the request requires email to be set...
+        values["email"] = email
+        result = self.gitea.requests_patch(User.USER_PATCH%self.username, data=values)
+        self.__initialize_user(self.username, result)
 
 
 class Repository:
@@ -61,23 +69,18 @@ class Repository:
 
     def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         self.gitea = gitea
+        self.name = "UNINIT"
         self.__initialize_repo(repoOwner, repoName, initJson)
 
     def __initialize_repo(self, repoOwner, repoName: str, result):
         if not result:
             result = self.gitea.requests_get(Repository.REPO_REQUEST % (repoOwner.username,repoName))
-        if result == {}:
-            logging.error("No Repository found: %s/%s" % (repoOwner.username, repoName))
-            raise Exception("No Repository found: %s/%s" % (repoOwner.username, repoName))
         logging.info("Found Repository: %s/%s" % (repoOwner.username, repoName))
         for i, v in result.items(): setattr(self, i, v)
         self.owner = repoOwner
 
     def get_branches(self):
         results = self.gitea.requests_get(Repository.REPO_BRANCHES%(self.owner.username, self.name))
-        if results == []:
-            logging.error("No Branches found: %s/%s" % (self.owner.username, self.name))
-            raise Exception("No Branches found: %s/%s" % (self.owner.username, self.name))
         return [Branch(self, result["name"], result) for result in results]
 
 
@@ -89,15 +92,11 @@ class Branch:
         self.gitea = repo.gitea
         self.__initialize_branch(repo, name, initJson)
 
-    def __initialize_branch(self,repository, name, result):
+    def __initialize_branch(self, repository, name, result):
         if not result:
             result = self.gitea.requests_get(Branch.REPO_BRANCH %
-                                             (repository.owner.username,repository.name, name))
-        if result == {}:
-            msg = "No Branch found: %s/%s/%s"%(repository.owner.username,repository.name, name)
-            logging.error(msg)
-            raise Exception(msg)
-        logging.info("Branch found: %s/%s/%s" % (repository.owner.username,repository.name, name))
+                                             (repository.owner.username, repository.name, name))
+        logging.info("Branch found: %s/%s/%s" % (repository.owner.username, repository.name, name))
         for i, v in result.items(): setattr(self, i, v)
         self.repository = repository
 
@@ -110,10 +109,6 @@ class Team:
     def __initialize_repo(self, org, name, result):
         if not result:
             raise NotImplementedError("TODO")
-        if result == {}:
-            msg = "No Team found: %s/%s"%(org.username, name)
-            logging.error(msg)
-            raise Exception(msg)
         logging.info("Team found: %s/%s" % (org.username, name))
         for i, v in result.items(): setattr(self, i, v)
         self.organization = org
@@ -124,6 +119,7 @@ class Gitea():
     ADMIN_CREATE_USER = """/admin/users"""
     ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
     GITEA_VERSION = """/version"""
+    GET_USER = """/user"""
 
     """
     @:param url: url of Gitea server without  .../api/<version>
@@ -144,25 +140,35 @@ class Gitea():
         return {}
 
     def requests_get(self, endpoint):
-        return self.parse_result(self.requests.get(self.get_url(endpoint), headers=self.headers))
+        request = self.requests.get(self.get_url(endpoint), headers=self.headers)
+        if request.status_code not in [200,201]:
+            logging.error("Received status code: %s (%s)"%(request.status_code, request.url))
+            raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
+        return self.parse_result(request)
+
+    def requests_delete(self, endpoint):
+        request = self.requests.delete(self.get_url(endpoint), headers=self.headers)
+        if request.status_code not in [200,201]:
+            logging.error("Received status code: %s (%s)"%(request.status_code, request.url))
+            raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
+        return self.parse_result(request)
 
     def requests_post(self, endpoint, data):
-        return self.parse_result(self.requests.post(self.get_url(endpoint), headers=self.headers, data=data))
+        request = self.requests.post(self.get_url(endpoint), headers=self.headers, data=data)
+        if request.status_code not in [200, 201]:
+            logging.error("Received status code: %s (%s)"%(request.status_code, request.url))
+            raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
+        return self.parse_result(request)
+
+    def requests_patch(self, endpoint, data):
+        request = self.requests.patch(self.get_url(endpoint), headers=self.headers, data=data)
+        if request.status_code not in [200, 201]:
+            logging.error("Received status code: %s (%s)"%(request.status_code, request.url))
+            raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
+        return self.parse_result(request)
 
     def get_users_gpg_keys(self, username):
         path = '/users/' + username + '/gpg_keys'
-        return self.requests_get(path)
-
-    def put_user_starred(self, username, reponame):
-        path = '/user/starred/' + username + '/' + reponame
-        return self.requests.put(path)
-
-    def delete_user_starred(self, username, reponame):
-        path = '/user/starred/' + username + '/' + reponame
-        return self.requests.delete(path)
-
-    def get_user_starred(self, username, reponame):
-        path = '/user/starred/' + username + '/' + reponame
         return self.requests_get(path)
 
     def get_users_search(self, ):
@@ -243,18 +249,9 @@ class Gitea():
         path = '/orgs/' + orgname + '/hooks/'
         return self.requests_post(path, data={'type': type, 'config': config, 'events': events, 'active': active})
 
-    def get_user(self, ):
-        path = '/user'
-        return self.requests_get(path)
-
     def get_orgs_members_all(self, orgname):
         path = '/orgs/' + orgname + '/members'
         return self.requests_get(path)
-
-    def patch_admin_users(self, source_id, login_name, full_name, email, password, website, location, active, admin,
-                          allow_git_hook, allow_import_local, max_repo_creation, username):
-        path = '/admin/users/' + username
-        return self.requests.patch(path)
 
     def delete_admin_users(self, username):
         path = '/admin/users/' + username
@@ -263,14 +260,6 @@ class Gitea():
     def post_admin_users_keys(self, title, key, username):
         path = '/admin/users/' + username + '/keys'
         return self.requests_post(path, data={'title': title, 'key': key})
-
-    def post_user_keys(self, title, key):
-        path = '/user/keys'
-        return self.requests_post(path, data={'title': title, 'key': key})
-
-    def get_user_keys_all(self):
-        path = '/user/keys'
-        return self.requests_get(path)
 
     def get_users_tokens(self, username):
         path = '/users/' + username + '/tokens'
@@ -294,14 +283,6 @@ class Gitea():
 
     def get_repos_forks(self, repo, owner):
         path = '/repos/' + owner + '/' + repo + '/forks'
-        return self.requests_get(path)
-
-    def get_user_starred_all(self):
-        path = '/user/starred'
-        return self.requests_get(path)
-
-    def get_users_followers(self, username):
-        path = '/users/' + username + '/followers'
         return self.requests_get(path)
 
     def get_repositories(self, id):
@@ -338,26 +319,6 @@ class Gitea():
 
     def get_orgs_public_members(self, username, orgname):
         path = '/orgs/' + orgname + '/public_members/' + username
-        return self.requests_get(path)
-
-    def get_user_following_all(self, ):
-        path = '/user/following'
-        return self.requests_get(path)
-
-    def get_user_followers(self, ):
-        path = '/user/followers'
-        return self.requests_get(path)
-
-    def patch_orgs_hooks(self, config, events, active, orgname, id):
-        path = '/orgs/' + orgname + '/hooks/' + id
-        return self.requests.patch(path)
-
-    def delete_orgs_hooks(self, orgname, id):
-        path = '/orgs/' + orgname + '/hooks/' + id
-        return self.requests.delete(path)
-
-    def get_orgs_hooks(self, orgname, id):
-        path = '/orgs/' + orgname + '/hooks/' + id
         return self.requests_get(path)
 
     def post_org_repos(self, name, description, private, auto_init, gitignores, license, readme, org):
@@ -405,6 +366,10 @@ class Gitea():
 
     # # #
 
+    def get_user(self, ):
+        result = self.requests_get(Gitea.GET_USER)
+        return User(self, "UNINIT", initJson=result)
+
     def get_version(self):
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
@@ -420,7 +385,7 @@ class Gitea():
             raise Exception("User not created... (gitea: %s)"%result["message"])
         return User(self, userName, result)
 
-    def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = "C#", license= None, readme = "Default"):
+    def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = None, license= None, readme = "Default"):
         assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
         result = self.requests_post(Gitea.ADMIN_REPO_CREATE%repoOwner.username,
             data={'name': repoName, 'description': description, 'private': private,
