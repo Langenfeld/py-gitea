@@ -37,7 +37,8 @@ class User:
 
     USER_REQUEST = """/users/%s""" #<org>
     USER_REPOS_REQUEST = """/users/%s/repos""" #<org>
-    USER_PATCH = """/admin/users/%s"""
+    USER_PATCH = """/admin/users/%s""" # <username>
+    ADMIN_DELETE_USER = """/admin/users/%s""" # <username>
 
     def __init__(self, gitea, userName : str, initJson: json = None):
         self.gitea = gitea
@@ -59,6 +60,9 @@ class User:
         values["email"] = email
         result = self.gitea.requests_patch(User.USER_PATCH%self.username, data=values)
         self.__initialize_user(self.username, result)
+
+    def delete(self):
+        result = self.gitea.requests_delete(User.ADMIN_DELETE_USER%self.username)
 
 
 class Repository:
@@ -148,10 +152,9 @@ class Gitea():
 
     def requests_delete(self, endpoint):
         request = self.requests.delete(self.get_url(endpoint), headers=self.headers)
-        if request.status_code not in [200,201]:
+        if request.status_code not in [204]:
             logging.error("Received status code: %s (%s)"%(request.status_code, request.url))
             raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
-        return self.parse_result(request)
 
     def requests_post(self, endpoint, data):
         request = self.requests.post(self.get_url(endpoint), headers=self.headers, data=data)
@@ -252,10 +255,6 @@ class Gitea():
     def get_orgs_members_all(self, orgname):
         path = '/orgs/' + orgname + '/members'
         return self.requests_get(path)
-
-    def delete_admin_users(self, username):
-        path = '/admin/users/' + username
-        return self.requests.delete(path)
 
     def post_admin_users_keys(self, title, key, username):
         path = '/admin/users/' + username + '/keys'
