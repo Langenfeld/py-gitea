@@ -10,6 +10,7 @@ print("API-Token belongs to user: " + gitea.get_user().username)
 org = Organization(gitea, "an-org")
 print(org.username)
 org.set_value({"location": "a-place"})
+print([user.username for user in org.get_members()])
 ## try getting an organization that does not exists
 try:
     org = Organization(gitea, "non-existent-org")

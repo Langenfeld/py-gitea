@@ -9,6 +9,7 @@ class Organization:
     ORG_REPOS_REQUEST = """/orgs/%s/repos""" #<org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams""" #<org>
     ORG_PATCH = """/orgs/%s""" #<org>
+    ORG_GET_MEMBERS = """/orgs/%s/members""" # <org>
 
     def __init__(self, gitea, orgName : str, initJson: json = None):
         self.gitea = gitea
@@ -22,6 +23,10 @@ class Organization:
     def get_teams(self):
         results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.username)
         return [Team(self, result["name"], initJson=result) for result in results]
+
+    def get_members(self):
+        results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
+        return [User(self, result["username"], initJson=result) for result in results]
 
     def __initialize_org(self, orgName: str, result) -> None:
         if not result:
@@ -47,7 +52,7 @@ class User:
 
     def get_repositories(self):
         result = self.gitea.requests_get(User.USER_REPOS_REQUEST%self.username)
-        return [Repository(self.gitea, self.username, r["name"]) for r in result]
+        return [Repository(self.gitea, self, r["name"]) for r in result]
 
     def __initialize_user(self, userName: str, result) -> None:
         if not result:
@@ -62,7 +67,7 @@ class User:
         self.__initialize_user(self.username, result)
 
     def delete(self):
-        result = self.gitea.requests_delete(User.ADMIN_DELETE_USER%self.username)
+        self.gitea.requests_delete(User.ADMIN_DELETE_USER%self.username)
 
 
 class Repository:
@@ -124,6 +129,7 @@ class Gitea():
     ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
     GITEA_VERSION = """/version"""
     GET_USER = """/user"""
+    CREATE_ORG = """/admin/users/%s/orgs""" #<username>
 
     """
     @:param url: url of Gitea server without  .../api/<version>
@@ -170,10 +176,6 @@ class Gitea():
             raise Exception(("Received status code: %s (%s)"%(request.status_code, request.url)))
         return self.parse_result(request)
 
-    def get_users_gpg_keys(self, username):
-        path = '/users/' + username + '/gpg_keys'
-        return self.requests_get(path)
-
     def get_users_search(self, ):
         path = '/users/search'
         return self.requests_get(path)
@@ -181,96 +183,6 @@ class Gitea():
     def delete_repos(self, username, reponame):
         path = '/repos/' + username + '/' + reponame
         return self.requests.delete(path)
-
-    def post_repos__mirror_sync(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame + '/mirror-sync'
-        return self.requests_post(path, data={})
-
-    def post_admin_users_orgs(self, username, full_name, description, website, location):
-        path = '/admin/users/' + username + '/orgs'
-        return self.requests_post(path, data={'username': username, 'full_name': full_name, 'description': description,
-                                              'website': website, 'location': location})
-
-    def post_user_gpg_keys(self, armored_public_key):
-        path = '/user/gpg_keys'
-        return self.requests_post(path, data={'armored_public_key': armored_public_key})
-
-    def get_user_gpg_keys_all(self):
-        path = '/user/gpg_keys'
-        return self.requests_get(path)
-
-    def get_user_subscriptions(self, ):
-        path = '/user/subscriptions'
-        return self.requests_get(path)
-
-    def post_markdown(self, Text, Mode, Context, Wiki):
-        path = '/markdown'
-        return self.requests_post(path, data={'Text': Text, 'Mode': Mode, 'Context': Context, 'Wiki': Wiki})
-
-    def patch_repos__hooks(self, config, events, active, username, reponame, id):
-        path = '/repos/' + username + '/' + reponame + '/hooks/' + id
-        return self.requests.patch(path)
-
-    def delete_repos_hooks(self, username, reponame, id):
-        path = '/repos/' + username + '/' + reponame + '/hooks/' + id
-        return self.requests.delete(path)
-
-
-    def get_users_keys(self, username):
-        path = '/users/' + username + '/keys'
-        return self.requests_get(path)
-
-    def put_user_following(self, username):
-        path = '/user/following/' + username
-        return self.requests.put(path)
-
-    def delete_user_following(self, username):
-        path = '/user/following/' + username
-        return self.requests.delete(path)
-
-    def get_user_following(self, username):
-        path = '/user/following/' + username
-        return self.requests_get(path)
-
-    def post_markdown_raw(self, ):
-        path = '/markdown/raw'
-        return self.requests_post(path, data={})
-
-    def get_users_subscriptions(self, username):
-        path = '/users/' + username + '/subscriptions'
-        return self.requests_get(path)
-
-    def delete_user_keys(self, id):
-        path = '/user/keys/' + id
-        return self.requests.delete(path)
-
-    def get_user_keys(self, id):
-        path = '/user/keys/' + id
-        return self.requests_get(path)
-
-    def post_orgs_hooks(self, type, config, events, active, orgname):
-        path = '/orgs/' + orgname + '/hooks/'
-        return self.requests_post(path, data={'type': type, 'config': config, 'events': events, 'active': active})
-
-    def get_orgs_members_all(self, orgname):
-        path = '/orgs/' + orgname + '/members'
-        return self.requests_get(path)
-
-    def post_admin_users_keys(self, title, key, username):
-        path = '/admin/users/' + username + '/keys'
-        return self.requests_post(path, data={'title': title, 'key': key})
-
-    def get_users_tokens(self, username):
-        path = '/users/' + username + '/tokens'
-        return self.requests_get(path)
-
-    def get_orgs_hooks_all(self, orgname):
-        path = '/orgs/' + orgname + '/hooks'
-        return self.requests_get(path)
-
-    def get_users(self, username):
-        path = '/users/' + username
-        return self.requests_get(path)
 
     def get_orgs_public_members_all(self, orgname):
         path = '/orgs/' + orgname + '/public_members'
@@ -282,10 +194,6 @@ class Gitea():
 
     def get_repos_forks(self, repo, owner):
         path = '/repos/' + owner + '/' + repo + '/forks'
-        return self.requests_get(path)
-
-    def get_repositories(self, id):
-        path = '/repositories/' + id
         return self.requests_get(path)
 
     def put_repos__subscription(self, username, reponame):
@@ -330,10 +238,6 @@ class Gitea():
         path = '/orgs/' + orgname + '/members/' + username
         return self.requests.delete(path)
 
-    def get_orgs_members(self, orgname, username):
-        path = '/orgs/' + orgname + '/members/' + username
-        return self.requests_get(path)
-
     def post_repos__hooks(self, type, config, events, active, reponame, username):
         path = '/repos/' + username + '/' + reponame + '/hooks'
         return self.requests_post(path, data={'type': type, 'config': config, 'events': events, 'active': active})
@@ -354,14 +258,6 @@ class Gitea():
         return self.requests_post(path, data={'name': name, 'description': description, 'private': private,
                                               'auto_init': auto_init, 'gitignores': gitignores, 'license': license,
                                               'readme': readme})
-
-    def delete_user_gpg_keys(self, id):
-        path = '/user/gpg_keys/' + id
-        return self.requests.delete(path)
-
-    def get_user_gpg_keys(self, id):
-        path = '/user/gpg_keys/' + id
-        return self.requests_get(path)
 
     # # #
 
@@ -395,3 +291,17 @@ class Gitea():
             logging.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
         return Repository(self, repoOwner, repoName, result)
+
+    def create_org(self, owner: User, orgName: str, description: str, website = "", location = ""):
+        assert (isinstance(owner, User))
+        result = self.requests_post(Gitea.CREATE_ORG%owner.username,
+                data={'username': orgName, 'full_name': orgName, 'description': description,
+                                          'website': website, 'location': location})
+        if "id" in result:
+            logging.info("Successfully created Repository %s "%(result["name"]))
+        else:
+            logging.error(result["message"])
+            raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
+        return Organization(owner, orgName, initJson=result)
+
+
