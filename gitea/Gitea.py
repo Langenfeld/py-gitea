@@ -129,7 +129,7 @@ class Gitea():
     ADMIN_REPO_CREATE = """/admin/users/%s/repos""" # <ownername>
     GITEA_VERSION = """/version"""
     GET_USER = """/user"""
-    CREATE_ORG = """/admin/users/%s/orgs""" #<username>
+    CREATE_ORG = """/admin/users/%s/orgs""" #username
 
     """
     @:param url: url of Gitea server without  .../api/<version>
@@ -261,15 +261,16 @@ class Gitea():
 
     # # #
 
-    def get_user(self, ):
+    def get_user(self) -> User:
         result = self.requests_get(Gitea.GET_USER)
         return User(self, "UNINIT", initJson=result)
 
-    def get_version(self):
+    def get_version(self) -> str:
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
 
-    def create_user(self, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0):
+    def create_user(self, userName: str, email: str, fullName: str, password: str, sendNotify = True, sourceId = 0)\
+            -> User:
         result = self.requests_post(Gitea.ADMIN_CREATE_USER,
             data={'source_id': sourceId, 'login_name': userName, 'username': userName, 'full_name': fullName,
             'email': email, 'password': password, 'send_notify': sendNotify})
@@ -280,8 +281,10 @@ class Gitea():
             raise Exception("User not created... (gitea: %s)"%result["message"])
         return User(self, userName, result)
 
-    def create_repo(self, repoOwner, repoName: str, description: str, private: bool, autoInit = True, gitignores = None, license= None, readme = "Default"):
-        assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization)) # although this only says user in the api, this also works for organizations
+    def create_repo(self, repoOwner, repoName: str, description: str,
+                    private: bool, autoInit = True, gitignores = None, license= None, readme = "Default") -> Repository:
+        # although this only says user in the api, this also works for organizations
+        assert(isinstance(repoOwner, User) or isinstance(repoOwner, Organization))
         result = self.requests_post(Gitea.ADMIN_REPO_CREATE%repoOwner.username,
             data={'name': repoName, 'description': description, 'private': private,
                                               'auto_init': autoInit, 'gitignores': gitignores, 'license': license, 'readme': readme})
@@ -292,11 +295,10 @@ class Gitea():
             raise Exception("Repository not created... (gitea: %s)"%(result["message"]))
         return Repository(self, repoOwner, repoName, result)
 
-    def create_org(self, owner: User, orgName: str, description: str, website = "", location = ""):
+    def create_org(self, owner: User, orgName: str, description: str,  location = "") -> Organization:
         assert (isinstance(owner, User))
         result = self.requests_post(Gitea.CREATE_ORG%owner.username,
-                data={'username': orgName, 'full_name': orgName, 'description': description,
-                                          'website': website, 'location': location})
+                data={'username': orgName, "description" : description, "location" : location})
         if "id" in result:
             logging.info("Successfully created Repository %s "%(result["name"]))
         else:

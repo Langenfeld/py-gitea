@@ -1,8 +1,9 @@
 import os
 
-from gitea import *
+from pygitea.gitea.gitea import *
 
-gitea = Gitea("https://test-gitea.something", "api-token")
+# put a ".token" file into your directory containg only the token
+gitea = Gitea("https://test-gitea.something", open(".token", "r").read(41))
 print("Gitea Version: " + gitea.get_version())
 print("API-Token belongs to user: " + gitea.get_user().username)
 
