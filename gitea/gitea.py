@@ -3,6 +3,14 @@ import requests
 import logging
 
 
+class APIException(Exception):
+    pass
+
+
+class IDException(Exception):
+    pass
+
+
 class Organization:
 
     #  ORG_CREATE = """/admin/users/%s/orgs""" # <org>
@@ -46,13 +54,6 @@ class Organization:
                 setattr(self, i, v)
         except Exception:
             logging.error("Did not find organisation: %s" % orgName)
-
-#     @staticmethod
-#     def create(gitea: Gitea, orgname: str, description: str = '', full_name:
-#     str = '', location: str = '', website: str = ''):
-#     gitea.requests_post(ORG_CREATE, data={'description': description,
-#     'full_name': full_name, 'location': location, 'username': orgname,
-#     'website': website})
 
     def set_value(self, values: dict):
         result = self.gitea.requests_patch(Organization.ORG_PATCH %
@@ -111,7 +112,7 @@ class Repository:
             result = self.gitea.requests_get(Repository.REPO_REQUEST %
                                              (repoOwner.username, repoName))
         logging.info("Found Repository: %s/%s" %
-                     repoOwner.username, repoName)
+                     (repoOwner.username, repoName))
         for i, v in result.items():
             setattr(self, i, v)
         self.owner = repoOwner
@@ -144,13 +145,16 @@ class Branch:
 
 class Team:
 
+    GET_TEAM = """/orgs/%s/teams"""
+
     def __init__(self, org: Organization, name: str, initJson: json = None):
         self.gitea = org.gitea
-        self.__initialize_repo(org, name, initJson)
+        self.__initialize_team(org, name, initJson)
 
-    def __initialize_repo(self, org, name, result):
+    def __initialize_team(self, org, name, result):
         if not result:
-            raise NotImplementedError("TODO")
+            # result = self.gitea.requests_get(User.USER_REQUEST % userName)
+            result = self.gitea.requests_get(Team.GET_TEAM % name)
         logging.info("Team found: %s/%s" % (org.username, name))
         for i, v in result.items():
             setattr(self, i, v)
@@ -170,7 +174,8 @@ class Gitea():
     @:param url: url of Gitea server without  .../api/<version>
     """
     def __init__(self, url, token):
-        self.headers = {"Authorization": "token " + token}
+        self.headers = {"Authorization": "token " + token,
+                        "Content-type": "application/json"}
         self.url = url
         self.requests = requests
 
@@ -190,9 +195,19 @@ class Gitea():
         if request.status_code not in [200, 201]:
             logging.error("Received status code: %s (%s)" %
                           (request.status_code, request.url))
-            raise Exception("Received status code: %s (%s)" %
-                            (request.status_code, request.url))
+            raise APIException("Received status code: %s (%s)" %
+                               (request.status_code, request.url))
         return self.parse_result(request)
+
+    def requests_put(self, endpoint):
+        request = self.requests.put(self.get_url(endpoint),
+                                    headers=self.headers)
+        if request.status_code not in [204]:
+            logging.error("Received status code: %s (%s) %s" %
+                          (request.status_code, request.url, request.text))
+            raise APIException("Received status code: %s (%s) %s" %
+                               (request.status_code, request.url,
+                                request.text))
 
     def requests_delete(self, endpoint):
         request = self.requests.delete(self.get_url(endpoint),
@@ -200,19 +215,23 @@ class Gitea():
         if request.status_code not in [204]:
             logging.error("Received status code: %s (%s)" %
                           (request.status_code, request.url))
-            raise Exception("Received status code: %s (%s)" %
-                            (request.status_code, request.url))
+            raise APIException("Received status code: %s (%s)" %
+                               (request.status_code, request.url))
 
     def requests_post(self, endpoint, data):
         request = self.requests.post(self.get_url(endpoint),
-                                     headers=self.headers, data=data)
+                                     headers=self.headers,
+                                     data=json.dumps(data))
         if request.status_code not in [200, 201]:
             logging.error("Received status code: %s (%s)" %
                           (request.status_code, request.url))
             logging.error("With info: %s (%s)" %
                           (data, self.headers))
-            raise Exception("Received status code: %s (%s)" %
-                            (request.status_code, request.url))
+            logging.error("Answer: %s" %
+                          request.text)
+            raise APIException("Received status code: %s (%s), %s" %
+                               (request.status_code, request.url,
+                                request.text))
         return self.parse_result(request)
 
     def requests_patch(self, endpoint, data):
@@ -349,13 +368,16 @@ class Gitea():
                                           'password': password,
                                           'send_notify': sendNotify})
         if "id" in result:
-            logging.info("Successfully created User %s (id %s)" %
-                         result["login"], result["id"])
+            logging.info("Successfully created User %s <%s> (id %s)" %
+                         (result["login"], result["email"], result["id"]))
         else:
             logging.error(result["message"])
-            raise Exception("User not created... (gitea: %s)" %
-                            result["message"])
+            raise IDException("User not created... (gitea: %s)" %
+                              result["message"])
         return User(self, userName, result)
+        # u = User(self, userName, result)
+        # u.email = email # becauso it isn't yet ... !
+        # return u
 
     def create_repo(self, repoOwner, repoName: str, description: str,
                     private: bool, autoInit=True, gitignores=None,
@@ -378,24 +400,26 @@ class Gitea():
                          result["name"])
         else:
             logging.error(result["message"])
-            raise Exception("Repository not created... (gitea: %s)" %
-                            result["message"])
+            raise IDException("Repository not created... (gitea: %s)" %
+                              result["message"])
         return Repository(self, repoOwner, repoName, result)
 
     def create_org(self, owner: User, orgName: str, description: str,
-                   location="") -> Organization:
+                   location="", website="", full_name="") -> Organization:
         assert (isinstance(owner, User))
         result = self.requests_post(Gitea.CREATE_ORG % owner.username,
-        # result = self.requests_post(Gitea.CREATE_ORG,
                                     data={"username": orgName,
                                           "description": description,
                                           "location": location,
-                                          "website": "", "full_name": ""})
+                                          "website": website,
+                                          "full_name": full_name})
         if "id" in result:
-            logging.info("Successfully created Repository %s" %
-                         (result["name"]))
+            logging.info("Successfully created Organization %s" %
+                         result["username"])
         else:
+            logging.error("Organization not created... (gitea: %s)" %
+                          result["message"])
             logging.error(result["message"])
-            raise Exception("Repository not created... (gitea: %s)" %
-                            (result["message"]))
+            raise IDException("Organization not created... (gitea: %s)" %
+                              result["message"])
         return Organization(owner, orgName, initJson=result)
