@@ -2,6 +2,8 @@ import json
 import requests
 import logging
 
+logging = logging.getLogger('gitea')
+
 
 class APIException(Exception):
     pass
@@ -18,6 +20,7 @@ class Organization:
     ORG_REQUEST = """/orgs/%s"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams"""  # <org>
+    ORG_TEAMS_CREATE = """/orgs/%s/teams"""  # <org>
     ORG_PATCH = """/orgs/%s"""  # <org>
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
 
@@ -27,7 +30,7 @@ class Organization:
         self.__initialize_org(orgName, initJson)
 
     def get_repositories(self):
-        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST %
+        results = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST %
                                           self.username)
         return [Repository(self.gitea, self, result["name"],
                            initJson=result) for result in results]
@@ -49,7 +52,7 @@ class Organization:
             if not result:
                 result = self.gitea.requests_get(Organization.ORG_REQUEST %
                                                  orgName)
-            logging.info("Found Orgranization: %s" % orgName)
+            logging.debug("Found Organization: %s" % orgName)
             for i, v in result.items():
                 setattr(self, i, v)
         except Exception:
@@ -81,7 +84,7 @@ class User:
     def __initialize_user(self, userName: str, result) -> None:
         if not result:
             result = self.gitea.requests_get(User.USER_REQUEST % userName)
-        logging.info("Found User: %s" % userName)
+        logging.debug("Found User: '%s'" % result["login"])
         for i, v in result.items():
             setattr(self, i, v)
 
@@ -111,7 +114,7 @@ class Repository:
         if not result:
             result = self.gitea.requests_get(Repository.REPO_REQUEST %
                                              (repoOwner.username, repoName))
-        logging.info("Found Repository: %s/%s" %
+        logging.debug("Found Repository: %s/%s" %
                      (repoOwner.username, repoName))
         for i, v in result.items():
             setattr(self, i, v)
@@ -136,7 +139,7 @@ class Branch:
             result = self.gitea.requests_get(Branch.REPO_BRANCH %
                                              (repository.owner.username,
                                               repository.name, name))
-        logging.info("Branch found: %s/%s/%s" % (repository.owner.username,
+        logging.debug("Branch found: %s/%s/%s" % (repository.owner.username,
                                                  repository.name, name))
         for i, v in result.items():
             setattr(self, i, v)
@@ -145,7 +148,8 @@ class Branch:
 
 class Team:
 
-    GET_TEAM = """/orgs/%s/teams"""
+    # GET_TEAM = """/orgs/%s/teams"""
+    GET_TEAM = """/teams/%s"""
 
     def __init__(self, org: Organization, name: str, initJson: json = None):
         self.gitea = org.gitea
@@ -153,9 +157,13 @@ class Team:
 
     def __initialize_team(self, org, name, result):
         if not result:
-            # result = self.gitea.requests_get(User.USER_REQUEST % userName)
-            result = self.gitea.requests_get(Team.GET_TEAM % name)
-        logging.info("Team found: %s/%s" % (org.username, name))
+            for team in org.get_teams():
+                if team.name == name:
+                    result = self.gitea.requests_get(Team.GET_TEAM % team.id)
+                    logging.debug("Team found: %s/%s" % (org.username, name))
+        if not result:
+            logging.warning("Failed to find Team: %s/%s" %
+                            (org.username, name))
         for i, v in result.items():
             setattr(self, i, v)
         self.organization = org
@@ -181,7 +189,7 @@ class Gitea():
 
     def get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
-        logging.info(url)
+        logging.debug('Url: %s' % url)
         return url
 
     def parse_result(self, result):
@@ -379,8 +387,9 @@ class Gitea():
         # u.email = email # becauso it isn't yet ... !
         # return u
 
-    def create_repo(self, repoOwner, repoName: str, description: str,
-                    private: bool, autoInit=True, gitignores=None,
+    def create_repo(self, repoOwner, repoName: str, description: str='',
+#                    private: bool=False, autoInit=True, gitignores='C#',
+                    private: bool=False, autoInit=True, gitignores=None,
                     license=None, readme="Default") -> Repository:
         # although this only says user in the api, this also works for
         # organizations
