@@ -155,6 +155,7 @@ class User:
         login: string
     """
 
+    USER_MAIL = """/user/emails?sudo=%s"""  # <name>
     USER_REQUEST = """/users/%s"""  # <org>
     USER_REPOS_REQUEST = """/users/%s/repos"""  # <org>
     USER_PATCH = """/admin/users/%s"""  # <username>
@@ -206,6 +207,18 @@ class User:
         logging.info("Found User: '%s'" % result["login"])
         for i, v in result.items():
             setattr(self, i, v)
+
+    def update_mail(self):
+        """ Update the mail of this user instance to one that is \
+        actually correct.
+        """
+        prev = self.email
+        result = self.gitea.requests_get(User.USER_MAIL % self.login)
+        for mail in result:
+            if mail['primary']:
+                self.email = mail['email']
+                break
+        logging.info("User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email))
 
     def set_value(self, email: str, values: dict):
         """ Set certain values of this user.
@@ -568,7 +581,7 @@ class Gitea():
                                      headers=self.headers,
                                      data=json.dumps(data))
         if request.status_code not in [200, 201]:
-            if 'already exists' in request.text:
+            if 'already exists' in request.text or 'e-mail already in use' in request.text:
                 logging.warning(request.text)
                 raise AlreadyExistsException()
             logging.error("Received status code: %s (%s)" %
