@@ -204,7 +204,6 @@ class User:
         """
         if not result:
             result = self.gitea.requests_get(User.USER_REQUEST % userName)
-        logging.info("Found User: '%s'" % result["login"])
         for i, v in result.items():
             setattr(self, i, v)
 
