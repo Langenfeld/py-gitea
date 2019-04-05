@@ -133,11 +133,13 @@ class Organization:
 
     def delete(self):
         """ Delete this Organization. Invalidates this Objects data.
-        Also deletes all Repositories, Teams and Users associated with this
-        Organization (except gitea-authenticated user).
+        Also deletes all Repositories and Teams associated with this
+        Organization.
         """
         # TODO: Delete Repos, Teams, Users (except authenticated user)
-        self.gitea.requests.delete(Organization.ORG_DELETE % self.username)
+        for repo in self.get_repositories():
+            repo.delete()
+        self.gitea.requests_delete(Organization.ORG_DELETE % self.username)
 
 
 class User:
@@ -224,6 +226,9 @@ class User:
 
     def delete(self):
         """ Deletes this user. Also deletes all Repositories he owns.
+
+        Warning:
+            Invalidates this Objects Data.
         """
         # TODO: Delete all Repositories of this user.
         # Might not be deleteable otherwise.
@@ -244,9 +249,10 @@ class Repository:
         ...
     """
 
-    REPO_REQUEST = """/repos/%s/%s"""   # <ownername>,<reponame>
+    REPO_REQUEST = """/repos/%s/%s"""   # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
+    REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
 
     def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         """ Initializing a Repository.
@@ -301,6 +307,14 @@ class Repository:
         results = self.gitea.requests_get(Repository.REPO_BRANCHES %
                                           self.owner.username, self.name)
         return [Branch(self, result["name"], result) for result in results]
+
+    def delete(self):
+        """ Deletes this Repository.
+
+        Warning:
+            Invalidates this objects Data.
+        """
+        self.gitea.requests_delete(Repository.REPO_DELETE % (self.owner.username, self.name))
 
 
 class Branch:
@@ -405,7 +419,7 @@ class Team:
     def __repr__(self):
         """ Representation of a Team. Consisting of name and id.
         """
-        return "Team: %s (%s)" % (self.name, self.id)
+        return "Team: %s/%s (%s)" % (self.organization.username, self.name, self.id)
 
     def add_user(self, user: User):
         """ Adding a User to this Team.
@@ -533,8 +547,8 @@ class Gitea():
         if request.status_code not in [204]:
             logging.error("Received status code: %s (%s)" %
                           (request.status_code, request.url))
-            raise Exception("Received status code: %s (%s)" %
-                               (request.status_code, request.url))
+            raise Exception("Received status code: %s (%s) %s" %
+                               (request.status_code, request.url, vars(request)))
 
     def requests_post(self, endpoint, data):
         """ Post data to API-endpoint.
