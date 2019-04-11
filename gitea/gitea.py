@@ -2,18 +2,20 @@ import json
 import requests
 import logging
 
-logging = logging.getLogger('gitea')
+logging = logging.getLogger("gitea")
 
 
 class AlreadyExistsException(Exception):
     """ Something (User/Repo/Organization/...) already exists.
     """
+
     pass
 
 
 class NotFoundException(Exception):
     """ Something (User/Repo/Organization/...) has not been found.
     """
+
     pass
 
 
@@ -70,10 +72,13 @@ class Organization:
         Returns: [Repository]
             A list of Repositories this Organization is hosting.
         """
-        results = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST %
-                                          self.username)
-        return [Repository(self.gitea, self, result["name"],
-                           initJson=result) for result in results]
+        results = self.gitea.requests_get(
+            Organization.ORG_REPOS_REQUEST % self.username
+        )
+        return [
+            Repository(self.gitea, self, result["name"], initJson=result)
+            for result in results
+        ]
 
     def get_teams(self):
         """ Get the Teams in this Organization
@@ -81,10 +86,10 @@ class Organization:
         Returns: [Team]
             A list of Teams in this Organization.
         """
-        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST %
-                                          self.username)
-        return [Team(self, result["name"], initJson=result)
-                for result in results]
+        results = self.gitea.requests_get(
+            Organization.ORG_TEAMS_REQUEST % self.username
+        )
+        return [Team(self, result["name"], initJson=result) for result in results]
 
     def get_members(self):
         """ Get all members of this Organization
@@ -92,10 +97,8 @@ class Organization:
         Returns: [User]
             A list of Users who are members of this Organization.
         """
-        results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS %
-                                          self.username)
-        return [User(self, result["username"], initJson=result)
-                for result in results]
+        results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
+        return [User(self, result["username"], initJson=result) for result in results]
 
     def __initialize_org(self, orgName: str, result) -> None:
         """ Initialize Organization.
@@ -107,15 +110,11 @@ class Organization:
         Throws:
             Exception, if Organization could not be found.
         """
-        try:
-            if not result:
-                result = self.gitea.requests_get(Organization.ORG_REQUEST %
-                                                 orgName)
-            logging.debug("Found Organization: %s" % orgName)
-            for i, v in result.items():
-                setattr(self, i, v)
-        except Exception:
-            logging.error("Did not find organisation: %s" % orgName)
+        if not result:
+            result = self.gitea.requests_get(Organization.ORG_REQUEST % orgName)
+        logging.debug("Found Organization: %s" % orgName)
+        for i, v in result.items():
+            setattr(self, i, v)
 
     def set_value(self, values: dict):
         """ Setting a certain value for an Organization.
@@ -127,8 +126,9 @@ class Organization:
                 location: string
                 website: string
         """
-        result = self.gitea.requests_patch(Organization.ORG_PATCH %
-                                           self.username, data=values)
+        result = self.gitea.requests_patch(
+            Organization.ORG_PATCH % self.username, data=values
+        )
         self.__initialize_org(self.username, result)
 
     def delete(self):
@@ -191,8 +191,7 @@ class User:
         Returns: [Repository]
             A list of Repositories this user owns.
         """
-        result = self.gitea.requests_get(User.USER_REPOS_REQUEST %
-                                         self.username)
+        result = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
         return [Repository(self.gitea, self, r["name"]) for r in result]
 
     def __initialize_user(self, userName: str, result) -> None:
@@ -214,10 +213,12 @@ class User:
         prev = self.email
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
         for mail in result:
-            if mail['primary']:
-                self.email = mail['email']
+            if mail["primary"]:
+                self.email = mail["email"]
                 break
-        logging.info("User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email))
+        logging.info(
+            "User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email)
+        )
 
     def set_value(self, email: str, values: dict):
         """ Set certain values of this user.
@@ -232,8 +233,7 @@ class User:
         """
         # the request requires email to be set...
         values["email"] = email
-        result = self.gitea.requests_patch(User.USER_PATCH % self.username,
-                                           data=values)
+        result = self.gitea.requests_patch(User.USER_PATCH % self.username, data=values)
         self.__initialize_user(self.username, result)
 
     def delete(self):
@@ -261,7 +261,7 @@ class Repository:
         ...
     """
 
-    REPO_REQUEST = """/repos/%s/%s"""   # <owner>, <reponame>
+    REPO_REQUEST = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
@@ -297,10 +297,10 @@ class Repository:
             NotFoundException, if Repository has not been found.
         """
         if not result:
-            result = self.gitea.requests_get(Repository.REPO_REQUEST %
-                                             (repoOwner.username, repoName))
-        logging.debug("Found Repository: %s/%s" %
-                     (repoOwner.username, repoName))
+            result = self.gitea.requests_get(
+                Repository.REPO_REQUEST % (repoOwner.username, repoName)
+            )
+        logging.debug("Found Repository: %s/%s" % (repoOwner.username, repoName))
         for i, v in result.items():
             setattr(self, i, v)
         self.owner = repoOwner
@@ -316,8 +316,9 @@ class Repository:
         Returns: [Branch]
             A list of Branches of this Repository.
         """
-        results = self.gitea.requests_get(Repository.REPO_BRANCHES %
-                                          self.owner.username, self.name)
+        results = self.gitea.requests_get(
+            Repository.REPO_BRANCHES % self.owner.username, self.name
+        )
         return [Branch(self, result["name"], result) for result in results]
 
     def delete(self):
@@ -326,7 +327,9 @@ class Repository:
         Warning:
             Invalidates this objects Data.
         """
-        self.gitea.requests_delete(Repository.REPO_DELETE % (self.owner.username, self.name))
+        self.gitea.requests_delete(
+            Repository.REPO_DELETE % (self.owner.username, self.name)
+        )
 
 
 class Branch:
@@ -368,11 +371,13 @@ class Branch:
             NotFoundException, if Branch could not be found.
         """
         if not result:
-            result = self.gitea.requests_get(Branch.REPO_BRANCH %
-                                             (repository.owner.username,
-                                              repository.name, name))
-        logging.debug("Branch found: %s/%s/%s" % (repository.owner.username,
-                                                 repository.name, name))
+            result = self.gitea.requests_get(
+                Branch.REPO_BRANCH % (repository.owner.username, repository.name, name)
+            )
+        logging.debug(
+            "Branch found: %s/%s/%s"
+            % (repository.owner.username, repository.name, name)
+        )
         for i, v in result.items():
             setattr(self, i, v)
         self.repository = repository
@@ -386,6 +391,7 @@ class Team:
     GET_TEAM = """/teams/%s"""  # <id>
     ADD_USER = """/teams/%s/members/%s"""  # <id, username to add>
     ADD_REPO = """/teams/%s/repos/%s/%s"""  # <id, org, repo>
+    TEAM_DELETE = """/teams/%s"""  # <id>
 
     def __init__(self, org: Organization, name: str, initJson: json = None):
         """ Initializes Team.
@@ -421,8 +427,7 @@ class Team:
                     result = self.gitea.requests_get(Team.GET_TEAM % team.id)
                     logging.debug("Team found: %s/%s" % (org.username, name))
         if not result:
-            logging.warning("Failed to find Team: %s/%s" %
-                            (org.username, name))
+            logging.warning("Failed to find Team: %s/%s" % (org.username, name))
             raise NotFoundException()
         for i, v in result.items():
             setattr(self, i, v)
@@ -447,10 +452,17 @@ class Team:
         Args:
             repo (Repository): Repository to be added.
         """
-        self.gitea.requests_put(Team.ADD_REPO % (self.id, self.organization.username, repo.name))
+        self.gitea.requests_put(
+            Team.ADD_REPO % (self.id, self.organization.username, repo.name)
+        )
+
+    def delete(self):
+        """ Delete this Team.
+        """
+        self.gitea.requests_delete(Team.TEAM_DELETE % self.id)
 
 
-class Gitea():
+class Gitea:
     """ Has Gitea-authenticated session. Can Create Users/Organizations/Teams/...
 
     Attr:
@@ -471,8 +483,10 @@ class Gitea():
             url (str): URL of Gitea-server.
             token (str): Token of acting User.
         """
-        self.headers = {"Authorization": "token " + token,
-                        "Content-type": "application/json"}
+        self.headers = {
+            "Authorization": "token " + token,
+            "Content-type": "application/json",
+        }
         self.url = url
         self.requests = requests
 
@@ -486,7 +500,7 @@ class Gitea():
             Combined total API endpoint.
         """
         url = self.url + "/api/v1" + endpoint
-        logging.debug('Url: %s' % url)
+        logging.debug("Url: %s" % url)
         return url
 
     @staticmethod
@@ -499,10 +513,9 @@ class Gitea():
         Returns: dict
             Parsed from JSON
         """
-        if (result.text and len(result.text) > 3):
+        if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
-
 
     def requests_get(self, endpoint):
         """ Get parsed result from API-endpoint.
@@ -516,15 +529,16 @@ class Gitea():
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.get(self.get_url(endpoint),
-                                    headers=self.headers)
+        request = self.requests.get(self.get_url(endpoint), headers=self.headers)
         if request.status_code not in [200, 201]:
             if request.status_code in [404]:
                 raise NotFoundException()
-            logging.error("Received status code: %s (%s)" %
-                          (request.status_code, request.url))
-            raise Exception("Received status code: %s (%s)" %
-                               (request.status_code, request.url))
+            logging.error(
+                "Received status code: %s (%s)" % (request.status_code, request.url)
+            )
+            raise Exception(
+                "Received status code: %s (%s)" % (request.status_code, request.url)
+            )
         return self.parse_result(request)
 
     def requests_put(self, endpoint):
@@ -536,14 +550,16 @@ class Gitea():
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.put(self.get_url(endpoint),
-                                    headers=self.headers)
+        request = self.requests.put(self.get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
-            logging.error("Received status code: %s (%s) %s" %
-                          (request.status_code, request.url, request.text))
-            raise Exception("Received status code: %s (%s) %s" %
-                               (request.status_code, request.url,
-                                request.text))
+            logging.error(
+                "Received status code: %s (%s) %s"
+                % (request.status_code, request.url, request.text)
+            )
+            raise Exception(
+                "Received status code: %s (%s) %s"
+                % (request.status_code, request.url, request.text)
+            )
 
     def requests_delete(self, endpoint):
         """ Get parsed result from API-endpoint.
@@ -554,13 +570,15 @@ class Gitea():
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.delete(self.get_url(endpoint),
-                                       headers=self.headers)
+        request = self.requests.delete(self.get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
-            logging.error("Received status code: %s (%s)" %
-                          (request.status_code, request.url))
-            raise Exception("Received status code: %s (%s) %s" %
-                               (request.status_code, request.url, vars(request)))
+            logging.error(
+                "Received status code: %s (%s)" % (request.status_code, request.url)
+            )
+            raise Exception(
+                "Received status code: %s (%s) %s"
+                % (request.status_code, request.url, vars(request))
+            )
 
     def requests_post(self, endpoint, data):
         """ Post data to API-endpoint.
@@ -576,22 +594,25 @@ class Gitea():
             AlreadyExistsException, if 'already exists' in answer
             Exception, if status code not ok
         """
-        request = self.requests.post(self.get_url(endpoint),
-                                     headers=self.headers,
-                                     data=json.dumps(data))
+        request = self.requests.post(
+            self.get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
         if request.status_code not in [200, 201]:
-            if 'already exists' in request.text or 'e-mail already in use' in request.text:
+            if (
+                "already exists" in request.text
+                or "e-mail already in use" in request.text
+            ):
                 logging.warning(request.text)
                 raise AlreadyExistsException()
-            logging.error("Received status code: %s (%s)" %
-                          (request.status_code, request.url))
-            logging.error("With info: %s (%s)" %
-                          (data, self.headers))
-            logging.error("Answer: %s" %
-                          request.text)
-            raise Exception("Received status code: %s (%s), %s" %
-                               (request.status_code, request.url,
-                                request.text))
+            logging.error(
+                "Received status code: %s (%s)" % (request.status_code, request.url)
+            )
+            logging.error("With info: %s (%s)" % (data, self.headers))
+            logging.error("Answer: %s" % request.text)
+            raise Exception(
+                "Received status code: %s (%s), %s"
+                % (request.status_code, request.url, request.text)
+            )
 
         return self.parse_result(request)
 
@@ -608,116 +629,146 @@ class Gitea():
         Throws:
             Exception, if status code not ok.
         """
-        request = self.requests.patch(self.get_url(endpoint),
-                                      headers=self.headers, data=json.dumps(data))
+        request = self.requests.patch(
+            self.get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
         if request.status_code not in [200, 201]:
-            logging.error("Received status code: %s (%s) %s" %
-                          (request.status_code, request.url, data))
-            raise Exception("Received status code: %s (%s) %s" %
-                            (request.status_code, request.url, request.text))
+            logging.error(
+                "Received status code: %s (%s) %s"
+                % (request.status_code, request.url, data)
+            )
+            raise Exception(
+                "Received status code: %s (%s) %s"
+                % (request.status_code, request.url, request.text)
+            )
         return self.parse_result(request)
 
     def get_users_search(self):
-        path = '/users/search'
+        path = "/users/search"
         return self.requests_get(path)
 
     def delete_repos(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame
+        path = "/repos/" + username + "/" + reponame
         return self.requests.delete(path)
 
     def get_orgs_public_members_all(self, orgname):
-        path = '/orgs/' + orgname + '/public_members'
+        path = "/orgs/" + orgname + "/public_members"
         return self.requests_get(path)
 
     def post_repos__forks(self, organization, repo, owner):
-        path = '/repos/' + owner + '/' + repo + '/forks'
-        return self.requests_post(path, data={'organization': organization})
+        path = "/repos/" + owner + "/" + repo + "/forks"
+        return self.requests_post(path, data={"organization": organization})
 
     def get_repos_forks(self, repo, owner):
-        path = '/repos/' + owner + '/' + repo + '/forks'
+        path = "/repos/" + owner + "/" + repo + "/forks"
         return self.requests_get(path)
 
     def put_repos__subscription(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame + '/subscription'
+        path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests.put(path)
 
     def delete_repos_subscription(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame + '/subscription'
+        path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests.delete(path)
 
     def get_repos_subscription(self, username, reponame):
-        path = '/repos/' + username + '/' + reponame + '/subscription'
+        path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests_get(path)
 
     def get_users_following(self, username):
-        path = '/users/' + username + '/following'
+        path = "/users/" + username + "/following"
         return self.requests_get(path)
 
     def get_users_starred(self, username):
-        path = '/users/' + username + '/starred'
+        path = "/users/" + username + "/starred"
         return self.requests_get(path)
 
     def put_orgs_public_members(self, username, orgname):
-        path = '/orgs/' + orgname + '/public_members/' + username
+        path = "/orgs/" + orgname + "/public_members/" + username
         return self.requests.put(path)
 
     def delete_orgs_public_members(self, username, orgname):
-        path = '/orgs/' + orgname + '/public_members/' + username
+        path = "/orgs/" + orgname + "/public_members/" + username
         return self.requests.delete(path)
 
     def get_orgs_public_members(self, username, orgname):
-        path = '/orgs/' + orgname + '/public_members/' + username
+        path = "/orgs/" + orgname + "/public_members/" + username
         return self.requests_get(path)
 
-    def post_org_repos(self, name, description, private, auto_init, gitignores,
-                       license, readme, org):
-        path = '/org/' + org + '/repos'
-        return self.requests_post(path, data={'name': name,
-                                              'description': description,
-                                              'private': private,
-                                              'auto_init': auto_init,
-                                              'gitignores': gitignores,
-                                              'license': license,
-                                              'readme': readme})
+    def post_org_repos(
+        self, name, description, private, auto_init, gitignores, license, readme, org
+    ):
+        path = "/org/" + org + "/repos"
+        return self.requests_post(
+            path,
+            data={
+                "name": name,
+                "description": description,
+                "private": private,
+                "auto_init": auto_init,
+                "gitignores": gitignores,
+                "license": license,
+                "readme": readme,
+            },
+        )
 
     def delete_orgs_members(self, orgname, username):
-        path = '/orgs/' + orgname + '/members/' + username
+        path = "/orgs/" + orgname + "/members/" + username
         return self.requests.delete(path)
 
-    def post_repos__hooks(self, type, config, events, active,
-                          reponame, username):
-        path = '/repos/' + username + '/' + reponame + '/hooks'
-        return self.requests_post(path, data={'type': type, 'config': config,
-                                              'events': events,
-                                              'active': active})
+    def post_repos__hooks(self, type, config, events, active, reponame, username):
+        path = "/repos/" + username + "/" + reponame + "/hooks"
+        return self.requests_post(
+            path,
+            data={"type": type, "config": config, "events": events, "active": active},
+        )
 
     def get_repos_hooks(self, reponame, username):
-        path = '/repos/' + username + '/' + reponame + '/hooks'
+        path = "/repos/" + username + "/" + reponame + "/hooks"
         return self.requests_get(path)
 
-    def post_repos_migrate(self, clone_addr, auth_username, auth_password, uid,
-                           repo_name, mirror, private,
-                           description):
-        path = '/repos/migrate'
-        return self.requests_post(path, data={'clone_addr': clone_addr,
-                                              'auth_username': auth_username,
-                                              'auth_password': auth_password,
-                                              'uid': uid,
-                                              'repo_name': repo_name,
-                                              'mirror': mirror,
-                                              'private': private,
-                                              'description': description})
+    def post_repos_migrate(
+        self,
+        clone_addr,
+        auth_username,
+        auth_password,
+        uid,
+        repo_name,
+        mirror,
+        private,
+        description,
+    ):
+        path = "/repos/migrate"
+        return self.requests_post(
+            path,
+            data={
+                "clone_addr": clone_addr,
+                "auth_username": auth_username,
+                "auth_password": auth_password,
+                "uid": uid,
+                "repo_name": repo_name,
+                "mirror": mirror,
+                "private": private,
+                "description": description,
+            },
+        )
 
-    def post_user_repos(self, name, description, private, auto_init,
-                        gitignores, license, readme):
-        path = '/user/repos'
-        return self.requests_post(path, data={'name': name,
-                                              'description': description,
-                                              'private': private,
-                                              'auto_init': auto_init,
-                                              'gitignores': gitignores,
-                                              'license': license,
-                                              'readme': readme})
+    def post_user_repos(
+        self, name, description, private, auto_init, gitignores, license, readme
+    ):
+        path = "/user/repos"
+        return self.requests_post(
+            path,
+            data={
+                "name": name,
+                "description": description,
+                "private": private,
+                "auto_init": auto_init,
+                "gitignores": gitignores,
+                "license": license,
+                "readme": readme,
+            },
+        )
 
     # # #
 
@@ -729,9 +780,15 @@ class Gitea():
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
 
-    def create_user(self, userName: str, email: str, password: str,
-                    change_pw=True, sendNotify=True, sourceId=0) \
-            -> User:
+    def create_user(
+        self,
+        userName: str,
+        email: str,
+        password: str,
+        change_pw=True,
+        sendNotify=True,
+        sourceId=0,
+    ) -> User:
         """ Create User.
 
         Args:
@@ -749,27 +806,40 @@ class Gitea():
             AlreadyExistsException, if the User exists already
             Exception, if something else went wrong.
         """
-        result = self.requests_post(Gitea.ADMIN_CREATE_USER,
-                                    data={'source_id': sourceId,
-                                          'login_name': userName,
-                                          'username': userName,
-                                          'email': email,
-                                          'password': password,
-                                          'send_notify': sendNotify,
-                                          'must_change_password': change_pw})
+        result = self.requests_post(
+            Gitea.ADMIN_CREATE_USER,
+            data={
+                "source_id": sourceId,
+                "login_name": userName,
+                "username": userName,
+                "email": email,
+                "password": password,
+                "send_notify": sendNotify,
+                "must_change_password": change_pw,
+            },
+        )
         if "id" in result:
-            logging.info("Successfully created User %s <%s> (id %s)" %
-                         (result["login"], result["email"], result["id"]))
+            logging.info(
+                "Successfully created User %s <%s> (id %s)"
+                % (result["login"], result["email"], result["id"])
+            )
         else:
             logging.error(result["message"])
-            raise Exception("User not created... (gitea: %s)" %
-                              result["message"])
+            raise Exception("User not created... (gitea: %s)" % result["message"])
         return User(self, userName, result)
 
-    def create_repo(self, repoOwner, repoName: str, description: str='',
-#                    private: bool=False, autoInit=True, gitignores='C#',
-                    private: bool=False, autoInit=True, gitignores=None,
-                    license=None, readme="Default") -> Repository:
+    def create_repo(
+        self,
+        repoOwner,
+        repoName: str,
+        description: str = "",
+        #                    private: bool=False, autoInit=True, gitignores='C#',
+        private: bool = False,
+        autoInit=True,
+        gitignores=None,
+        license=None,
+        readme="Default",
+    ) -> Repository:
         """ Create a Repository.
 
         Args:
@@ -792,28 +862,35 @@ class Gitea():
         """
         # although this only says user in the api, this also works for
         # organizations
-        assert(isinstance(repoOwner, User) or
-               isinstance(repoOwner, Organization))
-        result = self.requests_post(Gitea.ADMIN_REPO_CREATE %
-                                    repoOwner.username,
-                                    data={'name': repoName,
-                                          'description': description,
-                                          'private': private,
-                                          'auto_init': autoInit,
-                                          'gitignores': gitignores,
-                                          'license': license,
-                                          'readme': readme})
+        assert isinstance(repoOwner, User) or isinstance(repoOwner, Organization)
+        result = self.requests_post(
+            Gitea.ADMIN_REPO_CREATE % repoOwner.username,
+            data={
+                "name": repoName,
+                "description": description,
+                "private": private,
+                "auto_init": autoInit,
+                "gitignores": gitignores,
+                "license": license,
+                "readme": readme,
+            },
+        )
         if "id" in result:
-            logging.info("Successfully created Repository %s " %
-                         result["name"])
+            logging.info("Successfully created Repository %s " % result["name"])
         else:
             logging.error(result["message"])
-            raise Exception("Repository not created... (gitea: %s)" %
-                              result["message"])
+            raise Exception("Repository not created... (gitea: %s)" % result["message"])
         return Repository(self, repoOwner, repoName, result)
 
-    def create_org(self, owner: User, orgName: str, description: str,
-                   location="", website="", full_name="") -> Organization:
+    def create_org(
+        self,
+        owner: User,
+        orgName: str,
+        description: str,
+        location="",
+        website="",
+        full_name="",
+    ) -> Organization:
         """ Creates Organization.
 
         Args:
@@ -831,29 +908,43 @@ class Gitea():
             AlreadyExistsException, if this Organization already exists.
             Exception, if something else went wrong.
         """
-        assert (isinstance(owner, User))
-        result = self.requests_post(Gitea.CREATE_ORG % owner.username,
-                                    data={"username": orgName,
-                                          "description": description,
-                                          "location": location,
-                                          "website": website,
-                                          "full_name": full_name})
+        assert isinstance(owner, User)
+        result = self.requests_post(
+            Gitea.CREATE_ORG % owner.username,
+            data={
+                "username": orgName,
+                "description": description,
+                "location": location,
+                "website": website,
+                "full_name": full_name,
+            },
+        )
         if "id" in result:
-            logging.info("Successfully created Organization %s" %
-                         result["username"])
+            logging.info("Successfully created Organization %s" % result["username"])
         else:
-            logging.error("Organization not created... (gitea: %s)" %
-                          result["message"])
+            logging.error("Organization not created... (gitea: %s)" % result["message"])
             logging.error(result["message"])
-            raise Exception("Organization not created... (gitea: %s)" %
-                              result["message"])
+            raise Exception(
+                "Organization not created... (gitea: %s)" % result["message"]
+            )
         return Organization(owner, orgName, initJson=result)
 
-    def create_team(self, org: Organization, name: str, description: str = '',
-                    permission: str = "read",
-                    units = ["repo.code", "repo.issues", "repo.ext_issues",
-                             "repo.wiki", "repo.pulls", "repo.releases",
-                             "repo.ext_wiki"]) -> Team:
+    def create_team(
+        self,
+        org: Organization,
+        name: str,
+        description: str = "",
+        permission: str = "read",
+        units=[
+            "repo.code",
+            "repo.issues",
+            "repo.ext_issues",
+            "repo.wiki",
+            "repo.pulls",
+            "repo.releases",
+            "repo.ext_wiki",
+        ],
+    ) -> Team:
         """ Creates a Team.
 
         Args:
@@ -862,18 +953,19 @@ class Gitea():
             description (str): Optional, None, short description of the new Team.
             permission (str): Optional, 'read', What permissions the members
         """
-        result = self.requests_post(Gitea.CREATE_TEAM % org.username,
-                                    data={"name": name,
-                                          "description": description,
-                                          "permission": permission,
-                                          "units": units})
+        result = self.requests_post(
+            Gitea.CREATE_TEAM % org.username,
+            data={
+                "name": name,
+                "description": description,
+                "permission": permission,
+                "units": units,
+            },
+        )
         if "id" in result:
-            logging.info("Successfully created Team %s" %
-                         result["name"])
+            logging.info("Successfully created Team %s" % result["name"])
         else:
-            logging.error("Team not created... (gitea: %s)" %
-                          result["message"])
+            logging.error("Team not created... (gitea: %s)" % result["message"])
             logging.error(result["message"])
-            raise Exception("Team not created... (gitea: %s)" %
-                              result["message"])
+            raise Exception("Team not created... (gitea: %s)" % result["message"])
         return Team(org, name, initJson=result)
