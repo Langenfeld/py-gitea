@@ -1,6 +1,9 @@
 import os
 
-from gitea.gitea import *
+from gitea import Gitea, User, Organization, Team, Repository, version
+from gitea import NotFoundException, AlreadyExistsException
+
+assert version >= '0.4.0'
 
 
 # Testing a localhost instance for API-functionality.
@@ -82,6 +85,7 @@ def test_before_team():
 
 def test_create_user():
     user = gitea.create_user('test-user', 'testmail@example.org', 'pw1234')
+    user.update_mail()
     assert user.username == 'test-user'
     assert user.login == 'test-user'
     assert user.email == 'testmail@example.org'
@@ -89,7 +93,9 @@ def test_create_user():
 
 
 def test_create_org():
-    org = gitea.create_org(gitea.get_user(), 'test-org', 'some-desc', 'loc')
+    user = gitea.get_user()
+    org = gitea.create_org(user, 'test-org', 'some-desc', 'loc')
+    assert org.get_members() == [user]
     assert org.description == 'some-desc'
     assert org.username == 'test-org'
     assert org.location == 'loc'
@@ -98,47 +104,66 @@ def test_create_org():
 
 
 def test_create_repo():
-    pass
+    org = Organization(gitea, 'test-org')
+    repo = gitea.create_repo(org, 'test-repo', 'descr')
+    assert repo.description == 'descr'
+    assert repo.owner == org
+    assert repo.name == 'test-repo'
+    assert not repo.private
 
 
 def test_create_team():
-    pass
+    org = Organization(gitea, 'test-org')
+    team = gitea.create_team(org, 'test-team', 'descr')
+    assert team.name == 'test-team'
+    assert team.description == 'descr'
+    assert team.organization == org
+
+def test_full():
+    user = User(gitea, 'test-user')
+    user.update_mail()
+    org = Organization(gitea, 'test-org')
+    team = Team(org, 'test-team')
+    assert team.get_members() == []
+    team.add(user)
+    assert team.get_members() == [user]
+    repo = Repository(gitea, org, 'test-repo')
+    assert team.get_repos() == []
+    team.add(repo)
+    assert team.get_repos() == [repo]
 
 
-#
-# print(org.username)
-# org.set_value({"location": "a-place"})
-# print([user.username for user in org.get_members()])
-# ## try getting an organization that does not exists
-# try:
-#     org = Organization(gitea, "non-existent-org")
-# except:
-#     pass
-#
-# ##get a User that does exist
-# user = User(gitea, "a-user")
-# print(user.username)
-# ##try getting organization that does not exist
-# try:
-#     user = User(gitea, "non-existent-user")
-# except:
-#     pass
-# user.set_value(user.email, {"location": "an-location"})
-# ##get repositories set under a organization
-# repos = org.get_repositories()
-# print("org " + org.username + " has repositories " + str(repos))
-# ##get repositories of a user
-# userRepos = user.get_repositories()
-# print("user " + user.username + " has repositories " + str(repos))
-# ##get branches
-# repo = Repository(gitea, org,"playground")
-# print([b.name for b in repo.get_branches()])
-#
-# ##create Repository
-# gitea.create_repo(user , "test-repo-api", "this is an api test repo, delete this", True, True)
-# gitea.create_repo(org , "test-repo-api-org", "this is an api test repo, delete this", True, True)
-#
-# ## create user
-# newUser = gitea.create_user("test-test", "test@testing.de","Torben der Tester", str(os.urandom(32)), False)
-# print(newUser.username)
-# newUser.delete()
+def test_delete_repo():
+    org = Organization(gitea, 'test-org')
+    repo = Repository(gitea, org, 'test-repo')
+    repo.delete()
+    assert expect_not_exist(
+        lambda: Repository(gitea, User(gitea, "test-user"), "test-repo"),
+        (NotFoundException),
+    ), "Repository test-repo should not exist"
+
+def test_delete_team():
+    org = Organization(gitea, 'test-org')
+    team = Team(org, 'test-team')
+    team.delete()
+    assert expect_not_exist(
+        lambda: Team(org, "test-team"),
+        (NotFoundException),
+    ), "Team test-team should not exist"
+
+def test_delete_org():
+    org = Organization(gitea, 'test-org')
+    org.delete()
+    assert expect_not_exist(
+        lambda: Organization(gitea, "test-org"), (NotFoundException)
+    ), "Organization test-org should not exist"
+
+
+def test_delete_user():
+    user = User(gitea, 'test-user')
+    user.delete()
+    assert expect_not_exist(
+        lambda: User(gitea, "test-user"), (NotFoundException)
+    ), "User test-user should not exist"
+
+
