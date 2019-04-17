@@ -3,6 +3,7 @@ import requests
 import logging
 
 logging = logging.getLogger("gitea")
+version = '0.4.0'
 
 
 class AlreadyExistsException(Exception):
@@ -65,6 +66,12 @@ class Organization:
         """ Representation of an Organization. Consisting of username and id.
         """
         return "Organization: %s (%s)" % (self.username, self.id)
+
+    def __eq__(self, other):
+        if not other is None:
+            if isinstance(other, Organization):
+                return other.id == self.id
+        return False
 
     def get_repositories(self):
         """ Get the Repositories of this Organization.
@@ -206,6 +213,12 @@ class User:
         for i, v in result.items():
             setattr(self, i, v)
 
+    def __eq__(self, other):
+        if other is not None:
+            if isinstance(other, User):
+                return other.id == self.id
+        return False
+
     def update_mail(self):
         """ Update the mail of this user instance to one that is \
         actually correct.
@@ -265,6 +278,7 @@ class Repository:
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
+    REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
 
     def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         """ Initializing a Repository.
@@ -305,6 +319,12 @@ class Repository:
             setattr(self, i, v)
         self.owner = repoOwner
 
+    def __eq__(self, other):
+        if not other is None:
+            if isinstance(other, Repository):
+                return other.id == self.id
+        return False
+
     def __repr__(self):
         """ Representation of a Repository. Consisting of path and id.
         """
@@ -320,6 +340,18 @@ class Repository:
             Repository.REPO_BRANCHES % self.owner.username, self.name
         )
         return [Branch(self, result["name"], result) for result in results]
+
+    def get_user_time(self, username):
+        """Get the time a user spent working on this Repository.
+
+        Args:
+            username (str): Username of the user
+
+        Returns: int
+            Accumulated time the user worked in this Repository.
+        """
+        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
+        return results["time"]
 
     def delete(self):
         """ Deletes this Repository.
@@ -392,6 +424,8 @@ class Team:
     ADD_USER = """/teams/%s/members/%s"""  # <id, username to add>
     ADD_REPO = """/teams/%s/repos/%s/%s"""  # <id, org, repo>
     TEAM_DELETE = """/teams/%s"""  # <id>
+    GET_MEMBERS = """/teams/%s/members"""  # <id>
+    GET_REPOS = """/teams/%s/repos"""  # <id>
 
     def __init__(self, org: Organization, name: str, initJson: json = None):
         """ Initializes Team.
@@ -428,7 +462,7 @@ class Team:
                     logging.debug("Team found: %s/%s" % (org.username, name))
         if not result:
             logging.warning("Failed to find Team: %s/%s" % (org.username, name))
-            raise NotFoundException()
+            raise NotFoundException("Team could not be Found")
         for i, v in result.items():
             setattr(self, i, v)
         self.organization = org
@@ -437,6 +471,27 @@ class Team:
         """ Representation of a Team. Consisting of name and id.
         """
         return "Team: %s/%s (%s)" % (self.organization.username, self.name, self.id)
+
+    def __eq__(self, other):
+        if other is not None:
+            if isinstance(other, Team):
+                return other.id == self.id
+        return False
+
+    def add(self, toAdd):
+        """ Adding User or Repository to Team.
+
+        Args:
+            toAdd (Repository/User): the object to add to this Team
+        """
+        if isinstance(toAdd, Repository):
+            self.add_repo(toAdd)
+            return
+        if isinstance(toAdd, User):
+            self.add_user(toAdd)
+            return
+        logging.error("Could not add %s" % str(toAdd))
+        raise Exception("Could not add" + str(type(toAdd)))
 
     def add_user(self, user: User):
         """ Adding a User to this Team.
@@ -455,6 +510,26 @@ class Team:
         self.gitea.requests_put(
             Team.ADD_REPO % (self.id, self.organization.username, repo.name)
         )
+
+    def get_members(self):
+        """ Get all members of this Team.
+
+        Returns: [User]
+            A list of Users in this Team.
+        """
+        results = self.gitea.requests_get(Team.GET_MEMBERS % self.id)
+        return [User(self.gitea, result["username"], initJson=result) for result in results]
+
+    def get_repos(self):
+        """ Get all repos of this Team.
+
+        Returns: [Repository]
+            A list of Repositories of this Team
+        """
+        results = self.gitea.requests_get(Team.GET_REPOS % self.id)
+        return [Repository(self.gitea, self.organization, result["name"], initJson=result) for result in results]
+
+
 
     def delete(self):
         """ Delete this Team.
@@ -833,7 +908,6 @@ class Gitea:
         repoOwner,
         repoName: str,
         description: str = "",
-        #                    private: bool=False, autoInit=True, gitignores='C#',
         private: bool = False,
         autoInit=True,
         gitignores=None,
@@ -927,7 +1001,7 @@ class Gitea:
             raise Exception(
                 "Organization not created... (gitea: %s)" % result["message"]
             )
-        return Organization(owner, orgName, initJson=result)
+        return Organization(self, orgName, initJson=result)
 
     def create_team(
         self,
