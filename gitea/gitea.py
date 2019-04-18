@@ -3,7 +3,7 @@ import requests
 import logging
 
 logging = logging.getLogger("gitea")
-version = "0.4.0"
+version = "0.4.1"
 
 
 class AlreadyExistsException(Exception):
@@ -137,6 +137,10 @@ class Organization:
             Organization.ORG_PATCH % self.username, data=values
         )
         self.__initialize_org(self.username, result)
+
+    def remove_member(self, username):
+        path = "/orgs/" + self.username + "/members/" + username
+        self.gitea.requests_delete(path)
 
     def delete(self):
         """ Delete this Organization. Invalidates this Objects data.
