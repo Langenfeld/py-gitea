@@ -139,6 +139,8 @@ class Organization:
         self.__initialize_org(self.username, result)
 
     def remove_member(self, username):
+        if isinstance(username, User):
+            username = username.username
         path = "/orgs/" + self.username + "/members/" + username
         self.gitea.requests_delete(path)
 
