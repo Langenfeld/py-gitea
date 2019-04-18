@@ -1,1 +1,11 @@
-from .gitea import Gitea, User, Organization, Team, Repository, Branch, version, NotFoundException, AlreadyExistsException
+from .gitea import (
+    Gitea,
+    User,
+    Organization,
+    Team,
+    Repository,
+    Branch,
+    version,
+    NotFoundException,
+    AlreadyExistsException,
+)
