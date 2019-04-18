@@ -3,7 +3,7 @@ import requests
 import logging
 
 logging = logging.getLogger("gitea")
-version = '0.4.0'
+version = "0.4.0"
 
 
 class AlreadyExistsException(Exception):
@@ -250,7 +250,7 @@ class User:
         self.__initialize_user(self.username, result)
 
     def delete(self):
-        """ Deletes this user. Also deletes all Repositories he owns.
+        """ Deletes this User. Also deletes all Repositories he owns.
 
         Warning:
             Invalidates this Objects Data.
@@ -350,7 +350,9 @@ class Repository:
         Returns: int
             Accumulated time the user worked in this Repository.
         """
-        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
+        results = self.gitea.requests_get(
+            Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
+        )
         return results["time"]
 
     def delete(self):
@@ -518,7 +520,9 @@ class Team:
             A list of Users in this Team.
         """
         results = self.gitea.requests_get(Team.GET_MEMBERS % self.id)
-        return [User(self.gitea, result["username"], initJson=result) for result in results]
+        return [
+            User(self.gitea, result["username"], initJson=result) for result in results
+        ]
 
     def get_repos(self):
         """ Get all repos of this Team.
@@ -527,9 +531,10 @@ class Team:
             A list of Repositories of this Team
         """
         results = self.gitea.requests_get(Team.GET_REPOS % self.id)
-        return [Repository(self.gitea, self.organization, result["name"], initJson=result) for result in results]
-
-
+        return [
+            Repository(self.gitea, self.organization, result["name"], initJson=result)
+            for result in results
+        ]
 
     def delete(self):
         """ Delete this Team.
