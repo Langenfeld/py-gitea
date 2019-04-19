@@ -1,11 +1,17 @@
 # py-gitea
-A very simple API client for Gitea
 
-This is just a quick translation of swagger doc to python using simple hack and has not been throughly tested.
+A very simple API client for Gitea (`1.8.0-rc2`)
 
-Its easy enough to understand for making changes and making it usable for purpose. 
+This has been somewhat tested (and used!), so most things should work as expected.
 
-# tests:
+Note that not the full Swagger-API is accessible. The implemented part is
+focused on Organization/Team/Repository/User-creation, also putting users in
+Teams in Organizations and adding Repositories to Teams. Sadly the API does not
+do all of what I wanted to use. Still, it should be pretty easy to add almost
+all API-calls.
+
+
+# tests
 Can be run like this:
 
 ```python3 -m pytest tests.py```
