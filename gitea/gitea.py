@@ -356,10 +356,12 @@ class Repository:
         Returns: int
             Accumulated time the user worked in this Repository.
         """
+        if isinstance(username, User):
+            username = username.username
         results = self.gitea.requests_get(
             Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
         )
-        return results["time"]
+        return results["time"] if results else "0"
 
     def delete(self):
         """ Deletes this Repository.
