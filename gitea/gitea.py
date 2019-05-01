@@ -287,7 +287,6 @@ class Repository:
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
 
-
     def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         """ Initializing a Repository.
 
@@ -356,7 +355,8 @@ class Repository:
             A list of Issues of this Repository.
         """
         results = self.gitea.requests_get(
-                Repository.REPO_ISSUES % (self.owner.username, self.name))
+            Repository.REPO_ISSUES % (self.owner.username, self.name)
+        )
         return [Issue(self, result["id"], result) for result in results]
 
     def get_user_time(self, username):
@@ -386,10 +386,13 @@ class Repository:
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
 
+
 class Issue:
     """Reperestents an Issue in Gitea.
     """
+
     GET = """/repos/%s/%s/issues/%s"""  # <owner, repo, index>
+
     def __init__(self, repo: Repository, id: int, initJson: json = None):
         """ Initializes a Issue.
 
@@ -435,7 +438,7 @@ class Issue:
 
     def get_estimate_sum(self):
         """Returns the summed estimate-labeled values"""
-        return sum(map(lambda l: float(l['name'][10:]), self.labels))
+        return sum(map(lambda l: float(l["name"][10:]), self.labels))
 
 
 class Branch:
