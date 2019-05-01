@@ -361,7 +361,8 @@ class Repository:
         results = self.gitea.requests_get(
             Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
         )
-        return results["time"] if results else "0"
+        time = (sum(map(lambda d: d["time"], results)) // 60) / 60
+        return time
 
     def delete(self):
         """ Deletes this Repository.
