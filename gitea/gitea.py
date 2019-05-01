@@ -3,7 +3,7 @@ import requests
 import logging
 
 logging = logging.getLogger("gitea")
-version = "0.4.1"
+version = "0.4.2"
 
 
 class AlreadyExistsException(Exception):
@@ -283,8 +283,10 @@ class Repository:
     REPO_REQUEST = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
+    REPO_ISSUES = """/repos/%s/%s/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
+
 
     def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
         """ Initializing a Repository.
@@ -337,15 +339,25 @@ class Repository:
         return "Repository: %s/%s (%s)" % (self.owner.username, self.name, self.id)
 
     def get_branches(self):
-        """ Get all the branches of this Repository.
+        """Get all the Branches of this Repository.
 
         Returns: [Branch]
             A list of Branches of this Repository.
         """
         results = self.gitea.requests_get(
-            Repository.REPO_BRANCHES % self.owner.username, self.name
+            Repository.REPO_BRANCHES % (self.owner.username, self.name)
         )
         return [Branch(self, result["name"], result) for result in results]
+
+    def get_issues(self):
+        """Get all the Issues of this Repository.
+
+        Returns: [Issue]
+            A list of Issues of this Repository.
+        """
+        results = self.gitea.requests_get(
+                Repository.REPO_ISSUES % (self.owner.username, self.name))
+        return [Issue(self, result["id"], result) for result in results]
 
     def get_user_time(self, username):
         """Get the time a user spent working on this Repository.
@@ -373,6 +385,57 @@ class Repository:
         self.gitea.requests_delete(
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
+
+class Issue:
+    """Reperestents an Issue in Gitea.
+    """
+    GET = """/repos/%s/%s/issues/%s"""  # <owner, repo, index>
+    def __init__(self, repo: Repository, id: int, initJson: json = None):
+        """ Initializes a Issue.
+
+        Args:
+            repo (Repository): The Repository of this Issue.
+            id (int): The id of the Issue.
+            initJson (dict): Optional, init information for Issue.
+
+        Warning:
+            This does not create an Issue. <sth> does.
+
+        Throws:
+            NotFoundException, if the Issue could not be found.
+        """
+        self.gitea = repo.gitea
+        self.__initialize_issue(repo, id, initJson)
+
+    def __initialize_issue(self, repository, id, result):
+        """ Initializing an Issue.
+
+        Args:
+            repo (Repository): The Repository of this Issue.
+            id (int): The id of the Issue.
+            initJson (dict): Optional, init information for Issue.
+
+        Throws:
+            NotFoundException, if the Issue could not be found.
+        """
+        if not result:
+            result = self.gitea.requests_get(
+                Issue.GET % (repository.owner.username, repository.name, id)
+            )
+        logging.debug(
+            "Issue found: %s/%s/%s: %s"
+            % (repository.owner.username, repository.name, id, result["title"])
+        )
+        for i, v in result.items():
+            setattr(self, i, v)
+        self.repository = repository
+
+    def __repr__(self):
+        return "#%i %s" % (self.id, self.title)
+
+    def get_estimate_sum(self):
+        """Returns the summed estimate-labeled values"""
+        return sum(map(lambda l: float(l['name'][10:]), self.labels))
 
 
 class Branch:
