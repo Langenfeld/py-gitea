@@ -364,7 +364,7 @@ class Repository:
 
         Args:
             username (str): Username of the user
-            ignore_above (int): above what amount this number should be taken as invalid
+            ignore_above (int): above what amount this number should be taken as invalid (in hours)
 
         Returns: int
             Accumulated time the user worked in this Repository.
@@ -374,7 +374,7 @@ class Repository:
         results = self.gitea.requests_get(
             Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
         )
-        time = (sum(filter(lambda t: t < ignore_above, map(lambda d: d["time"], results))) // 60) / 60
+        time = (sum(filter(lambda t: t < ignore_above * 3600, map(lambda d: d["time"], results))) // 60) / 60
         return time
 
     def delete(self):
