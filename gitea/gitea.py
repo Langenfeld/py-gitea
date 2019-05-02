@@ -359,11 +359,12 @@ class Repository:
         )
         return [Issue(self, result["id"], result) for result in results]
 
-    def get_user_time(self, username):
+    def get_user_time(self, username, ignore_above = 8):
         """Get the time a user spent working on this Repository.
 
         Args:
             username (str): Username of the user
+            ignore_above (int): above what amount this number should be taken as invalid
 
         Returns: int
             Accumulated time the user worked in this Repository.
@@ -373,7 +374,7 @@ class Repository:
         results = self.gitea.requests_get(
             Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
         )
-        time = (sum(map(lambda d: d["time"], results)) // 60) / 60
+        time = (sum(filter(lambda t: t < ignore_above, map(lambda d: d["time"], results))) // 60) / 60
         return time
 
     def delete(self):
