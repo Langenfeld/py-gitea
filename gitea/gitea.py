@@ -437,11 +437,6 @@ class Issue:
     def __repr__(self):
         return "#%i %s" % (self.id, self.title)
 
-    def get_estimate_sum(self):
-        """Returns the summed estimate-labeled values"""
-        return sum(map(lambda l: float(l["name"][10:]), filter(lambda l: l["name"][:10] == 'estimate: ' , self.labels)))
-
-
 class Branch:
     """ Represents a Branch in the Gitea-instance.
 

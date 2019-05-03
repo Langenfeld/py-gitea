@@ -8,4 +8,5 @@ from .gitea import (
     version,
     NotFoundException,
     AlreadyExistsException,
+    Issue,
 )
