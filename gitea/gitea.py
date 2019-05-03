@@ -349,15 +349,32 @@ class Repository:
         return [Branch(self, result["name"], result) for result in results]
 
     def get_issues(self):
-        """Get all the Issues of this Repository.
+        """Get all Issues of this Repository.
 
         Returns: [Issue]
             A list of Issues of this Repository.
         """
-        results = self.gitea.requests_get(
-            Repository.REPO_ISSUES % (self.owner.username, self.name)
-        )
-        return [Issue(self, result["id"], result) for result in results]
+        return self.get_issues_state("open") + self.get_issues_state("closed")
+
+    def get_issues_state(self, state):
+        """Get either open or closed Issues of this Repository.
+
+        Returns: [Issue]
+            A list of Issues of this Repository.
+        """
+        assert state in ["open", "closed"]
+        index = 1
+        issues = []
+        while True:
+            results = self.gitea.requests_get(
+                Repository.REPO_ISSUES % (self.owner.username, self.name),
+                params = {"page": index}
+            )
+            if len(results) <= 0:
+                break
+            index += 1
+            issues += [Issue(self, result["id"], result) for result in results]
+        return issues
 
     def get_user_time(self, username, ignore_above = 8):
         """Get the time a user spent working on this Repository.
@@ -668,7 +685,7 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
-    def requests_get(self, endpoint):
+    def requests_get(self, endpoint, params={}):
         """ Get parsed result from API-endpoint.
 
         Args:
@@ -680,7 +697,7 @@ class Gitea:
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.get(self.get_url(endpoint), headers=self.headers)
+        request = self.requests.get(self.get_url(endpoint), headers=self.headers, params=params)
         if request.status_code not in [200, 201]:
             if request.status_code in [404]:
                 raise NotFoundException()
