@@ -366,9 +366,10 @@ class Repository:
         index = 1
         issues = []
         while True:
+            #q=&type=all&sort=&state=open&milestone=0&assignee=0
             results = self.gitea.requests_get(
                 Repository.REPO_ISSUES % (self.owner.username, self.name),
-                params = {"page": index}
+                params = {"page": index, "state": state}
             )
             if len(results) <= 0:
                 break
