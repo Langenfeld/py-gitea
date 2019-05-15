@@ -1,6 +1,7 @@
 import json
 import requests
 import logging
+from datetime import datetime
 
 logging = logging.getLogger("gitea")
 version = "0.4.2"
@@ -173,6 +174,7 @@ class User:
     USER_REPOS_REQUEST = """/users/%s/repos"""  # <org>
     USER_PATCH = """/admin/users/%s"""  # <username>
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
+    USER_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea, userName: str, initJson: json = None):
         """ Initialize a User. At least a username is necessary.
@@ -265,6 +267,11 @@ class User:
         # Might not be deleteable otherwise.
         self.gitea.requests_delete(User.ADMIN_DELETE_USER % self.username)
 
+
+    def get_heatmap(self):
+        results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
+        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
+        return results
 
 class Repository:
     """ Represents a Repository in the Gitea-instance.
@@ -366,6 +373,7 @@ class Repository:
         index = 1
         issues = []
         while True:
+            #q=&type=all&sort=&state=open&milestone=0&assignee=0
             results = self.gitea.requests_get(
                 Repository.REPO_ISSUES % (self.owner.username, self.name),
                 params = {"page": index, "state": state}
@@ -410,7 +418,6 @@ class Issue:
     """
 
     GET = """/repos/%s/%s/issues/%s"""  # <owner, repo, index>
-    ISSUE_COMMENTS = """/repos/%s/%s/issues/%s/comments"""
 
     def __init__(self, repo: Repository, id: int, initJson: json = None):
         """ Initializes a Issue.
@@ -454,71 +461,6 @@ class Issue:
 
     def __repr__(self):
         return "#%i %s" % (self.id, self.title)
-
-    def get_comments(self):
-        """Get all the Comments of this Repository.
-
-        Returns: [Comment]
-            A list of Comments of this Repository.
-        """
-        results = self.gitea.requests_get(
-            Issue.ISSUE_COMMENTS % (self.repository.owner.username, self.repository.name, self.number)
-        )
-        return [Comment(self, result["id"], result) for result in results]
-
-
-
-class Comment:
-    """Reperestents Comment in Gitea.
-    """
-
-    GET = """/repos/%s/%s/issues/comments/%s"""  # <owner, repo, index>
-
-    def __init__(self, repo: Repository, id: int, initJson: json = None):
-        """ Initializes a Issue.
-
-        Args:
-            repo (Repository): The Repository of this Issue.
-            id (int): The id of the Issue.
-            initJson (dict): Optional, init information for Issue.
-
-        Warning:
-            This does not create an Issue. <sth> does.
-
-        Throws:
-            NotFoundException, if the Issue could not be found.
-        """
-        self.gitea = repo.gitea
-        self.__initialize_comment(repo, id, initJson)
-
-    def __initialize_comment(self, repository, id, result):
-        """ Initializing an Comment.
-
-        Args:
-            repo (Repository): The Repository of this Issue.
-            id (int): The id of the Comment.
-            initJson (dict): Optional, init information for Comment.
-
-        Throws:
-            NotFoundException, if the Comment could not be found.
-        """
-        if not result:
-            result = self.gitea.requests_get(
-                Comment.GET % (repository.owner.username, repository.name, id)
-            )
-        #logging.debug(
-        #    "Comment found: %s/%s/%s: %s"
-         #   % (repository.owner.username, repository.name, id, result["body"])
-        #)
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.repository = repository
-
-    def __repr__(self):
-        return "#%i %s" % (self.id, self.title)
-
-
-
 
 class Branch:
     """ Represents a Branch in the Gitea-instance.
