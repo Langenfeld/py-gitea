@@ -267,7 +267,10 @@ class User:
 
     def get_heatmap(self):
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
-        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
+        results = [
+            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
+            for result in results
+        ]
         return results
 
 
@@ -371,10 +374,10 @@ class Repository:
         index = 1
         issues = []
         while True:
-            #q=&type=all&sort=&state=open&milestone=0&assignee=0
+            # q=&type=all&sort=&state=open&milestone=0&assignee=0
             results = self.gitea.requests_get(
                 Repository.REPO_ISSUES % (self.owner.username, self.name),
-                params = {"page": index, "state": state}
+                params={"page": index, "state": state},
             )
             if len(results) <= 0:
                 break
@@ -382,7 +385,7 @@ class Repository:
             issues += [Issue(self, result["id"], result) for result in results]
         return issues
 
-    def get_user_time(self, username, ignore_above = 8):
+    def get_user_time(self, username, ignore_above=8):
         """Get the time a user spent working on this Repository.
 
         Args:
@@ -397,7 +400,14 @@ class Repository:
         results = self.gitea.requests_get(
             Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
         )
-        time = (sum(filter(lambda t: t < ignore_above * 3600, map(lambda d: d["time"], results))) // 60) / 60
+        time = (
+            sum(
+                filter(
+                    lambda t: t < ignore_above * 3600, map(lambda d: d["time"], results)
+                )
+            )
+            // 60
+        ) / 60
         return time
 
     def delete(self):
@@ -462,7 +472,12 @@ class Issue:
 
     def get_estimate_sum(self):
         """Returns the summed estimate-labeled values"""
-        return sum(map(lambda l: float(l["name"][10:]), filter(lambda l: l["name"][:10] == 'estimate: ' , self.labels)))
+        return sum(
+            map(
+                lambda l: float(l["name"][10:]),
+                filter(lambda l: l["name"][:10] == "estimate: ", self.labels),
+            )
+        )
 
 
 class Branch:
@@ -708,7 +723,9 @@ class Gitea:
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.get(self.get_url(endpoint), headers=self.headers, params=params)
+        request = self.requests.get(
+            self.get_url(endpoint), headers=self.headers, params=params
+        )
         if request.status_code not in [200, 201]:
             if request.status_code in [404]:
                 raise NotFoundException()
