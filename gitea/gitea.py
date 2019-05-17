@@ -34,8 +34,6 @@ class Organization:
         gitea: Gitea-instance.
     """
 
-    #  ORG_CREATE = """/admin/users/%s/orgs""" # <org>
-    #  ORG_CREATE = """/orgs""" # <org>
     ORG_REQUEST = """/orgs/%s"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams"""  # <org>
@@ -267,11 +265,11 @@ class User:
         # Might not be deleteable otherwise.
         self.gitea.requests_delete(User.ADMIN_DELETE_USER % self.username)
 
-
     def get_heatmap(self):
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
         results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
+
 
 class Repository:
     """ Represents a Repository in the Gitea-instance.
@@ -461,6 +459,11 @@ class Issue:
 
     def __repr__(self):
         return "#%i %s" % (self.id, self.title)
+
+    def get_estimate_sum(self):
+        """Returns the summed estimate-labeled values"""
+        return sum(map(lambda l: float(l["name"][10:]), filter(lambda l: l["name"][:10] == 'estimate: ' , self.labels)))
+
 
 class Branch:
     """ Represents a Branch in the Gitea-instance.
