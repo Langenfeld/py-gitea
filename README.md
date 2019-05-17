@@ -1,5 +1,8 @@
 # py-gitea
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
+
+
 A very simple API client for Gitea (`1.8.0-rc2`)
 
 This has been somewhat tested (and used!), so most things should work as expected.
