@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 logging = logging.getLogger("gitea")
-version = "0.4.2"
+version = "0.4.3"
 
 
 class AlreadyExistsException(Exception):
@@ -420,12 +420,64 @@ class Repository:
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
 
+class Milestone:
+    """Reperesents a Milestone in Gitea.
+    """
+    GET = """/repos/%s/%s/milestones/%s"""  # <owner, repo, id>
+
+    def __init__(self, repo: Repository, id: int, initJson: json = None):
+        """ Initializes a Milestone.
+
+        Args:
+            repo (Repository): The Repository of this Milestone.
+            id (int): The id of the Milestone.
+            initJson (dict): Optional, init information for Milestone.
+
+        Warning:
+            This does not create a Milestone. <sth> does.
+
+        Throws:
+            NotFoundException, if the Milestone could not be found.
+        """
+        self.gitea = repo.gitea
+        self.__initialize_milestone(repo, id, initJson)
+
+    def __initialize_milestone(self, repository, id, result):
+        """ Initializes a Milestone.
+
+        Args:
+            repo (Repository): The Repository of this Milestone.
+            id (int): The id of the Milestone.
+            initJson (dict): Optional, init information for Milestone.
+
+        Throws:
+            NotFoundException, if the Milestone could not be found.
+        """
+        if not result:
+            result = self.gitea.requests_get(
+                Milestone.GET % (repository.owner.username, repository.name, id)
+            )
+        logging.debug(
+            "Milestone found: %s/%s/%s: %s"
+            % (repository.owner.username, repository.name, id, result["title"])
+        )
+        for i, v in result.items():
+            setattr(self, i, v)
+        self.repository = repository
+
+    def __repr__(self):
+        return "Milestone: '%s'" % self.title
+
+    def full_print(self):
+        return str(vars(self))
+
 
 class Issue:
     """Reperestents an Issue in Gitea.
     """
 
     GET = """/repos/%s/%s/issues/%s"""  # <owner, repo, index>
+    GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
 
     def __init__(self, repo: Repository, id: int, initJson: json = None):
         """ Initializes a Issue.
@@ -466,6 +518,13 @@ class Issue:
         for i, v in result.items():
             setattr(self, i, v)
         self.repository = repository
+        self.milestone = Milestone(repository, self.milestone["id"], self.milestone) if self.milestone else self.milestone
+
+    def __eq__(self, other):
+        if other is not None:
+            if isinstance(other, Milestone):
+                return other.id == self.id
+        return False
 
     def __repr__(self):
         return "#%i %s" % (self.id, self.title)
@@ -478,6 +537,10 @@ class Issue:
                 filter(lambda l: l["name"][:10] == "estimate: ", self.labels),
             )
         )
+
+    def get_time(self, user_id = None):
+        """ Returns the summed time on this issue for this user."""
+        return sum((t["time"] // 60) / 60 for t in self.gitea.requests_get(Issue.GET_TIME % (repository.owner.username, repository.name, id)) if user_id and t["user_id"] == user_id)
 
 
 class Branch:
@@ -732,6 +795,10 @@ class Gitea:
             logging.error(
                 "Received status code: %s (%s)" % (request.status_code, request.url)
             )
+            if request.status_code in [403]:
+                raise Exception(
+                    "Unauthorized: %s - Check your permissions and try again!" % request.url
+                )
             raise Exception(
                 "Received status code: %s (%s)" % (request.status_code, request.url)
             )

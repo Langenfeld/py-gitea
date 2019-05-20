@@ -9,4 +9,5 @@ from .gitea import (
     NotFoundException,
     AlreadyExistsException,
     Issue,
+    Milestone,
 )
