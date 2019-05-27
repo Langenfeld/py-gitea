@@ -558,7 +558,7 @@ class Issue:
         return sum(
             (t["time"] // 60) / 60
             for t in self.gitea.requests_get(
-                Issue.GET_TIME % (self.repository.owner.username, self.repository.name, self.id)
+                Issue.GET_TIME % (self.repository.owner.username, self.repository.name, self.number)
             )
             if user_id and t["user_id"] == user_id
         )
