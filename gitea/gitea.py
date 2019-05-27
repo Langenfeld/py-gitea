@@ -420,9 +420,11 @@ class Repository:
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
 
+
 class Milestone:
     """Reperesents a Milestone in Gitea.
     """
+
     GET = """/repos/%s/%s/milestones/%s"""  # <owner, repo, id>
 
     def __init__(self, repo: Repository, id: int, initJson: json = None):
@@ -464,6 +466,15 @@ class Milestone:
         for i, v in result.items():
             setattr(self, i, v)
         self.repository = repository
+
+    def __eq__(self, other):
+        if other is not None:
+            if isinstance(other, Milestone):
+                return other.id == self.id
+        return False
+
+    def __hash__(self):
+        return self.id
 
     def __repr__(self):
         return "Milestone: '%s'" % self.title
@@ -518,7 +529,11 @@ class Issue:
         for i, v in result.items():
             setattr(self, i, v)
         self.repository = repository
-        self.milestone = Milestone(repository, self.milestone["id"], self.milestone) if self.milestone else self.milestone
+        self.milestone = (
+            Milestone(repository, self.milestone["id"], self.milestone)
+            if self.milestone
+            else self.milestone
+        )
 
     def __eq__(self, other):
         if other is not None:
@@ -538,9 +553,15 @@ class Issue:
             )
         )
 
-    def get_time(self, user_id = None):
+    def get_time(self, user_id=None):
         """ Returns the summed time on this issue for this user."""
-        return sum((t["time"] // 60) / 60 for t in self.gitea.requests_get(Issue.GET_TIME % (repository.owner.username, repository.name, id)) if user_id and t["user_id"] == user_id)
+        return sum(
+            (t["time"] // 60) / 60
+            for t in self.gitea.requests_get(
+                Issue.GET_TIME % (repository.owner.username, repository.name, id)
+            )
+            if user_id and t["user_id"] == user_id
+        )
 
 
 class Branch:
@@ -797,7 +818,8 @@ class Gitea:
             )
             if request.status_code in [403]:
                 raise Exception(
-                    "Unauthorized: %s - Check your permissions and try again!" % request.url
+                    "Unauthorized: %s - Check your permissions and try again!"
+                    % request.url
                 )
             raise Exception(
                 "Received status code: %s (%s)" % (request.status_code, request.url)
