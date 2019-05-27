@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 logging = logging.getLogger("gitea")
-version = "0.4.3"
+version = "0.4.4"
 
 
 class AlreadyExistsException(Exception):
@@ -558,7 +558,7 @@ class Issue:
         return sum(
             (t["time"] // 60) / 60
             for t in self.gitea.requests_get(
-                Issue.GET_TIME % (repository.owner.username, repository.name, id)
+                Issue.GET_TIME % (self.repository.owner.username, self.repository.name, self.id)
             )
             if user_id and t["user_id"] == user_id
         )
