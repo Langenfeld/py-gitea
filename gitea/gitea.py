@@ -537,7 +537,7 @@ class Issue:
 
     def __eq__(self, other):
         if other is not None:
-            if isinstance(other, Milestone):
+            if isinstance(other, Issue):
                 return other.id == self.id
         return False
 
