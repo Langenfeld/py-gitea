@@ -21,18 +21,57 @@ class NotFoundException(Exception):
     pass
 
 
-class Organization:
-    """ Represents an Organization in the Gitea-instance.
-    Attr:
-        id: int
-        avatar_url: string
-        description: string
-        full_name: string
-        location: string
-        username: string
-        website: string
-        gitea: Gitea-instance.
-    """
+
+
+class GiteaApiObject:
+
+    def __init__(self, gitea, id: int):
+        self.id = id
+        self.gitea = gitea
+
+    def __repr__(self):
+        return "GiteaApiObject: %i" % (self.id)
+
+    def __eq__(self, other):
+        return other.id == self.id if isinstance(other, type(self)) else False
+
+    fields_to_parsers = {}
+
+    @classmethod
+    def request(cls, gitea, id):
+        """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
+        All args are put into an args tuple for passing around"""
+        return cls._request(gitea, (id))
+
+    @classmethod
+    def _request(cls, gitea, args):
+        result = cls._get_gitea_api_object(gitea, args)
+        return cls.parse_request(gitea, result)
+
+    @classmethod
+    def parse_request(cls, gitea, result):
+        id = int(result["id"])
+        logging.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+        api_object = cls(gitea, id=id)
+        cls._initialize(api_object, result)
+        return api_object
+
+    @classmethod
+    def _get_gitea_api_object(cls, gitea, args):
+        """Make the conctrete request to gitea-api"""
+        return {"id":args[0]}
+
+    @classmethod
+    def _initialize(cls, api_object, result):
+        for i, v in result.items():
+            if i in cls.fields_to_parsers:
+                parse_func = cls.fields_to_parsers[i]
+                setattr(api_object, i, parse_func(v))
+            else:
+                setattr(api_object, i, v)
+
+
+class Organization(GiteaApiObject):
 
     ORG_REQUEST = """/orgs/%s"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
@@ -42,35 +81,22 @@ class Organization:
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
     ORG_DELETE = """/orgs/%s"""  # <org>
 
-    def __init__(self, gitea, orgName: str, initJson: json = None):
-        """ Initialize Organization-Object. At least a name is required.
-        Will get this Organization, and fail if it does not exist.
+    def __init__(self, gitea, id: int):
+        super(Organization, self).__init__(gitea, id=id)
 
-        Args:
-            gitea (Gitea): current instance.
-            orgName: Name of Organization.
-            initJson (dict): Optional, init information for Organization
+    fields_to_parsers = {
+        "website": lambda t: t  #just for demonstration purpose
+    }
 
-        Returns: Organization
-            The initialized Organization.
+    @classmethod
+    def request(cls, gitea, name):
+        return cls._request(gitea, (name))
 
-        Throws:
-            NotFoundException
-        """
-        self.gitea = gitea
-        self.username = "UNINIT"
-        self.__initialize_org(orgName, initJson)
+    @classmethod
+    def _get_gitea_api_object(cls, gitea, args):
+        return gitea.requests_get(cls.ORG_REQUEST % args)
 
-    def __repr__(self):
-        """ Representation of an Organization. Consisting of username and id.
-        """
-        return "Organization: %s (%s)" % (self.username, self.id)
-
-    def __eq__(self, other):
-        if not other is None:
-            if isinstance(other, Organization):
-                return other.id == self.id
-        return False
+    # oldstuff
 
     def get_repositories(self):
         """ Get the Repositories of this Organization.
@@ -106,22 +132,6 @@ class Organization:
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
         return [User(self, result["username"], initJson=result) for result in results]
 
-    def __initialize_org(self, orgName: str, result) -> None:
-        """ Initialize Organization.
-
-        Args:
-            orgName (str): Name of the Organization
-            result (dict): Optional, init information for Organization
-
-        Throws:
-            Exception, if Organization could not be found.
-        """
-        if not result:
-            result = self.gitea.requests_get(Organization.ORG_REQUEST % orgName)
-        logging.debug("Found Organization: %s" % orgName)
-        for i, v in result.items():
-            setattr(self, i, v)
-
     def set_value(self, values: dict):
         """ Setting a certain value for an Organization.
 
@@ -135,7 +145,7 @@ class Organization:
         result = self.gitea.requests_patch(
             Organization.ORG_PATCH % self.username, data=values
         )
-        self.__initialize_org(self.username, result)
+        return Organization.create(self.gitea, result=result)
 
     def remove_member(self, username):
         if isinstance(username, User):
