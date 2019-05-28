@@ -145,7 +145,7 @@ class Organization(GiteaApiObject):
         result = self.gitea.requests_patch(
             Organization.ORG_PATCH % self.username, data=values
         )
-        return Organization.create(self.gitea, result=result)
+        return Organization.parse_request(self.gitea, result)
 
     def remove_member(self, username):
         if isinstance(username, User):
