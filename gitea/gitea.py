@@ -15,6 +15,8 @@ class NotFoundException(Exception):
 
 class GiteaApiObject:
 
+    GET_API_OBJECT = "FORMAT/STINING/{argument}"
+
     def __init__(self, gitea, id: int):
         self.id = id
         self.gitea = gitea
@@ -25,18 +27,25 @@ class GiteaApiObject:
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
 
+    def __hash__(self):
+        return self.id
+
     fields_to_parsers = {}
 
     @classmethod
     def request(cls, gitea, id):
         """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
-        return cls._request(gitea, (id))
+        return cls._request(gitea, {"id":id})
 
     @classmethod
     def _request(cls, gitea, args):
         result = cls._get_gitea_api_object(gitea, args)
-        return cls.parse_request(gitea, result)
+        api_object = cls.parse_request(gitea, result)
+        api_object = cls.parse_request(gitea, result)
+        for key, value in args.items(): # hack: not all necessary request args in api result (e.g. repo name in issue)
+            setattr(api_object, key, value)
+        return api_object
 
     @classmethod
     def parse_request(cls, gitea, result):
@@ -48,22 +57,23 @@ class GiteaApiObject:
 
     @classmethod
     def _get_gitea_api_object(cls, gitea, args):
-        """Make the conctrete request to gitea-api"""
-        return {"id":args[0]}
+        """Retrieving an object always as GET_API_OBJECT """
+        return gitea.requests_get(cls.GET_API_OBJECT.format(**args))
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
         for i, v in result.items():
-            if i in cls.fields_to_parsers:
+            if i in cls.fields_to_parsers and v is not None:
                 parse_func = cls.fields_to_parsers[i]
                 setattr(api_object, i, parse_func(gitea, v))
             else:
                 setattr(api_object, i, v)
 
 
+
 class Organization(GiteaApiObject):
 
-    ORG_REQUEST = """/orgs/%s"""  # <org>
+    GET_API_OBJECT = """/orgs/{name}"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams"""  # <org>
     ORG_TEAMS_CREATE = """/orgs/%s/teams"""  # <org>
@@ -76,11 +86,8 @@ class Organization(GiteaApiObject):
 
     @classmethod
     def request(cls, gitea, name):
-        return cls._request(gitea, (name))
+        return cls._request(gitea, {"name": name})
 
-    @classmethod
-    def _get_gitea_api_object(cls, gitea, args):
-        return gitea.requests_get(cls.ORG_REQUEST % args)
 
     # oldstuff
 
@@ -152,8 +159,8 @@ class Organization(GiteaApiObject):
 
 class User(GiteaApiObject):
 
+    GET_API_OBJECT = """/users/{name}"""  # <org>
     USER_MAIL = """/user/emails?sudo=%s"""  # <name>
-    USER_REQUEST = """/users/%s"""  # <org>
     USER_REPOS_REQUEST = """/users/%s/repos"""  # <org>
     USER_PATCH = """/admin/users/%s"""  # <username>
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
@@ -164,11 +171,7 @@ class User(GiteaApiObject):
 
     @classmethod
     def request(cls, gitea, name):
-        return cls._request(gitea, (name))
-
-    @classmethod
-    def _get_gitea_api_object(cls, gitea, args):
-        return gitea.requests_get(cls.USER_REQUEST % args)
+        return cls._request(gitea, {"name": name})
 
 
     def get_repositories(self):
@@ -231,7 +234,7 @@ class User(GiteaApiObject):
 
 class Repository(GiteaApiObject):
 
-    REPO_REQUEST = """/repos/%s/%s"""  # <owner>, <reponame>
+    GET_API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
     REPO_ISSUES = """/repos/%s/%s/issues"""  # <owner, reponame>
@@ -247,12 +250,8 @@ class Repository(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, name):
-        return cls._request(gitea, (name))
-
-    @classmethod
-    def _get_gitea_api_object(cls, gitea, args):
-        return gitea.requests_get(cls.REPO_REQUEST % args)
+    def request(cls, gitea, owner, name):
+        return cls._request(gitea, {"owner": owner, "name": name})
 
     def get_branches(self):
         """Get all the Branches of this Repository.
@@ -291,7 +290,12 @@ class Repository(GiteaApiObject):
             if len(results) <= 0:
                 break
             index += 1
-            issues += [Issue(self, result["id"], result) for result in results]
+            for result in results:
+                issue = Issue.parse_request(self.gitea, result)
+                #again a hack because this infomation gets lost after the api call
+                setattr(issue, "repo", self.name)
+                setattr(issue, "owner", self.owner.username)
+                issues.append(issue)
         return issues
 
     def get_user_time(self, username, ignore_above=8):
@@ -330,128 +334,47 @@ class Repository(GiteaApiObject):
         )
 
 
-class Milestone:
+class Milestone(GiteaApiObject):
     """Reperesents a Milestone in Gitea.
     """
 
-    GET = """/repos/%s/%s/milestones/%s"""  # <owner, repo, id>
+    GET_API_OBJECT = """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo, id>
 
-    def __init__(self, repo: Repository, id: int, initJson: json = None):
-        """ Initializes a Milestone.
+    def __init__(self, gitea, id: int):
+        super(Milestone, self).__init__(gitea, id=id)
 
-        Args:
-            repo (Repository): The Repository of this Milestone.
-            id (int): The id of the Milestone.
-            initJson (dict): Optional, init information for Milestone.
-
-        Warning:
-            This does not create a Milestone. <sth> does.
-
-        Throws:
-            NotFoundException, if the Milestone could not be found.
-        """
-        self.gitea = repo.gitea
-        self.__initialize_milestone(repo, id, initJson)
-
-    def __initialize_milestone(self, repository, id, result):
-        """ Initializes a Milestone.
-
-        Args:
-            repo (Repository): The Repository of this Milestone.
-            id (int): The id of the Milestone.
-            initJson (dict): Optional, init information for Milestone.
-
-        Throws:
-            NotFoundException, if the Milestone could not be found.
-        """
-        if not result:
-            result = self.gitea.requests_get(
-                Milestone.GET % (repository.owner.username, repository.name, id)
-            )
-        logging.debug(
-            "Milestone found: %s/%s/%s: %s"
-            % (repository.owner.username, repository.name, id, result["title"])
-        )
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.repository = repository
-
-    def __eq__(self, other):
-        if other is not None:
-            if isinstance(other, Milestone):
-                return other.id == self.id
-        return False
-
-    def __hash__(self):
-        return self.id
-
-    def __repr__(self):
-        return "Milestone: '%s'" % self.title
+    @classmethod
+    def request(cls, gitea, owner, repo, number):
+        return cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
 
     def full_print(self):
         return str(vars(self))
 
 
-class Issue:
-    """Reperestents an Issue in Gitea.
-    """
+class Issue(GiteaApiObject):
 
-    GET = """/repos/%s/%s/issues/%s"""  # <owner, repo, index>
+    GET_API_OBJECT = """/repos/{owner}/{repo}/issues/{number}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
 
-    def __init__(self, repo: Repository, id: int, initJson: json = None):
-        """ Initializes a Issue.
+    closed = "closed"
+    open = "open"
 
-        Args:
-            repo (Repository): The Repository of this Issue.
-            id (int): The id of the Issue.
-            initJson (dict): Optional, init information for Issue.
+    def __init__(self, gitea, id: int):
+        super(Issue, self).__init__(gitea, id=id)
 
-        Warning:
-            This does not create an Issue. <sth> does.
+    fields_to_parsers = {
+        "milestone": lambda gitea, m: Milestone.parse_request(gitea, m),
+        "user": lambda gitea, u: User.parse_request(gitea, u),
+        "assignee": lambda gitea, u: User.parse_request(gitea, u),
+        "assignees": lambda gitea, us: [User.parse_request(gitea, u) for u in us],
+        "state": lambda gitea, s: Issue.closed if s == "closed" else Issue.open
+    }
 
-        Throws:
-            NotFoundException, if the Issue could not be found.
-        """
-        self.gitea = repo.gitea
-        self.__initialize_issue(repo, id, initJson)
+    @classmethod
+    def request(cls, gitea, owner, repo, number):
+        api_object = cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
+        return api_object
 
-    def __initialize_issue(self, repository, id, result):
-        """ Initializing an Issue.
-
-        Args:
-            repo (Repository): The Repository of this Issue.
-            id (int): The id of the Issue.
-            initJson (dict): Optional, init information for Issue.
-
-        Throws:
-            NotFoundException, if the Issue could not be found.
-        """
-        if not result:
-            result = self.gitea.requests_get(
-                Issue.GET % (repository.owner.username, repository.name, id)
-            )
-        logging.debug(
-            "Issue found: %s/%s/%s: %s"
-            % (repository.owner.username, repository.name, id, result["title"])
-        )
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.repository = repository
-        self.milestone = (
-            Milestone(repository, self.milestone["id"], self.milestone)
-            if self.milestone
-            else self.milestone
-        )
-
-    def __eq__(self, other):
-        if other is not None:
-            if isinstance(other, Milestone):
-                return other.id == self.id
-        return False
-
-    def __repr__(self):
-        return "#%i %s" % (self.id, self.title)
 
     def get_estimate_sum(self):
         """Returns the summed estimate-labeled values"""
@@ -467,7 +390,7 @@ class Issue:
         return sum(
             (t["time"] // 60) / 60
             for t in self.gitea.requests_get(
-                Issue.GET_TIME % (self.repository.owner.username, self.repository.name, self.number)
+                Issue.GET_TIME % (self.owner, self.repo, self.number)
             )
             if user_id and t["user_id"] == user_id
         )
