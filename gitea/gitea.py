@@ -6,21 +6,11 @@ from datetime import datetime
 logging = logging.getLogger("gitea")
 version = "0.4.4"
 
-
 class AlreadyExistsException(Exception):
-    """ Something (User/Repo/Organization/...) already exists.
-    """
-
     pass
-
 
 class NotFoundException(Exception):
-    """ Something (User/Repo/Organization/...) has not been found.
-    """
-
     pass
-
-
 
 
 class GiteaApiObject:
@@ -53,7 +43,7 @@ class GiteaApiObject:
         id = int(result["id"])
         logging.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
-        cls._initialize(api_object, result)
+        cls._initialize(gitea, api_object, result)
         return api_object
 
     @classmethod
@@ -62,11 +52,11 @@ class GiteaApiObject:
         return {"id":args[0]}
 
     @classmethod
-    def _initialize(cls, api_object, result):
+    def _initialize(cls, gitea, api_object, result):
         for i, v in result.items():
             if i in cls.fields_to_parsers:
                 parse_func = cls.fields_to_parsers[i]
-                setattr(api_object, i, parse_func(v))
+                setattr(api_object, i, parse_func(gitea, v))
             else:
                 setattr(api_object, i, v)
 
@@ -83,10 +73,6 @@ class Organization(GiteaApiObject):
 
     def __init__(self, gitea, id: int):
         super(Organization, self).__init__(gitea, id=id)
-
-    fields_to_parsers = {
-        "website": lambda t: t  #just for demonstration purpose
-    }
 
     @classmethod
     def request(cls, gitea, name):
@@ -108,7 +94,7 @@ class Organization(GiteaApiObject):
             Organization.ORG_REPOS_REQUEST % self.username
         )
         return [
-            Repository(self.gitea, self, result["name"], initJson=result)
+            Repository.parse_request(self.gitea, result)
             for result in results
         ]
 
@@ -130,7 +116,7 @@ class Organization(GiteaApiObject):
             A list of Users who are members of this Organization.
         """
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
-        return [User(self, result["username"], initJson=result) for result in results]
+        return [User.parse_request(self.gitea, result) for result in results]
 
     def set_value(self, values: dict):
         """ Setting a certain value for an Organization.
@@ -164,18 +150,7 @@ class Organization(GiteaApiObject):
         self.gitea.requests_delete(Organization.ORG_DELETE % self.username)
 
 
-class User:
-    """ Represents a User in the Gitea-instance.
-
-    Attr:
-        avatar_url: string
-        email: string
-        full_name: string
-        id: int
-        is_admin: bool
-        language: string
-        login: string
-    """
+class User(GiteaApiObject):
 
     USER_MAIL = """/user/emails?sudo=%s"""  # <name>
     USER_REQUEST = """/users/%s"""  # <org>
@@ -184,29 +159,17 @@ class User:
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
     USER_HEATMAP = """/users/%s/heatmap"""  # <username>
 
-    def __init__(self, gitea, userName: str, initJson: json = None):
-        """ Initialize a User. At least a username is necessary.
+    def __init__(self, gitea, id: int):
+        super(User, self).__init__(gitea, id=id)
 
-        Warning:
-            This will only get a user, not create one.
-            `Gitea.create_user` does that.
+    @classmethod
+    def request(cls, gitea, name):
+        return cls._request(gitea, (name))
 
-        Args:
-            gitea (Gitea): current instance.
-            userName (str): login-name of the User.
-            initJson (dict): Optional, init information for User
+    @classmethod
+    def _get_gitea_api_object(cls, gitea, args):
+        return gitea.requests_get(cls.USER_REQUEST % args)
 
-        Throws:
-            NotFoundException, if User does not exist.
-        """
-        self.gitea = gitea
-        self.username = "UNINIT"
-        self.__initialize_user(userName, initJson)
-
-    def __repr__(self):
-        """ Representation of a User. Consisting of login-name and id.
-        """
-        return "User: %s (%s)" % (self.login, self.id)
 
     def get_repositories(self):
         """ Get all Repositories owned by this User.
@@ -214,26 +177,8 @@ class User:
         Returns: [Repository]
             A list of Repositories this user owns.
         """
-        result = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
-        return [Repository(self.gitea, self, r["name"]) for r in result]
-
-    def __initialize_user(self, userName: str, result) -> None:
-        """ Initialize User.
-
-        Args:
-            userName (str): The name of the user.
-            result (dict): Optional, init information for User.
-        """
-        if not result:
-            result = self.gitea.requests_get(User.USER_REQUEST % userName)
-        for i, v in result.items():
-            setattr(self, i, v)
-
-    def __eq__(self, other):
-        if other is not None:
-            if isinstance(other, User):
-                return other.id == self.id
-        return False
+        results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
+        return [Repository.parse_request(self.gitea, result) for result in results]
 
     def update_mail(self):
         """ Update the mail of this user instance to one that is \
@@ -284,19 +229,7 @@ class User:
         return results
 
 
-class Repository:
-    """ Represents a Repository in the Gitea-instance.
-
-    Attr:
-        archived: bool
-        clone_url: string
-        default_branch: string
-        id: int
-        empty: bool
-        owner: User/Organization
-        private: bool
-        ...
-    """
+class Repository(GiteaApiObject):
 
     REPO_REQUEST = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
@@ -305,55 +238,21 @@ class Repository:
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
 
-    def __init__(self, gitea, repoOwner, repoName: str, initJson: json = None):
-        """ Initializing a Repository.
+    def __init__(self, gitea, id: int):
+        super(Repository, self).__init__(gitea, id=id)
 
-        Args:
-            gitea (Gitea): current instance.
-            repoOwner (User/Organization): Owner of the Repository.
-            repoName (str): Name of the Repository
-            initJson (dict): Optional, init information for Repository.
+    fields_to_parsers = {
+        "owner": lambda gitea, r: User.parse_request(gitea, r),
+        "updated_at": lambda gitea, t: Util.convert_time(t)
+    }
 
-        Warning:
-            This does not Create a Repository. `gitea.create_repo` does.
+    @classmethod
+    def request(cls, gitea, name):
+        return cls._request(gitea, (name))
 
-        Throws:
-            NotFoundException, if Repository has not been found.
-        """
-        self.gitea = gitea
-        self.name = "UNINIT"
-        self.__initialize_repo(repoOwner, repoName, initJson)
-
-    def __initialize_repo(self, repoOwner, repoName: str, result):
-        """ Initializing a Repository.
-
-        Args:
-            repoOwner (User/Organization): Owner of the Repository
-            repoName (str): Name of the Repository
-            result (dict): Optional, init information for Repository.
-
-        Throws:
-            NotFoundException, if Repository has not been found.
-        """
-        if not result:
-            result = self.gitea.requests_get(
-                Repository.REPO_REQUEST % (repoOwner.username, repoName)
-            )
-        logging.debug("Found Repository: %s/%s" % (repoOwner.username, repoName))
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.owner = repoOwner
-
-    def __eq__(self, other):
-        if not other is None:
-            if isinstance(other, Repository):
-                return other.id == self.id
-        return False
-
-    def __repr__(self):
-        """ Representation of a Repository. Consisting of path and id.
-        """
-        return "Repository: %s/%s (%s)" % (self.owner.username, self.name, self.id)
+    @classmethod
+    def _get_gitea_api_object(cls, gitea, args):
+        return gitea.requests_get(cls.REPO_REQUEST % args)
 
     def get_branches(self):
         """Get all the Branches of this Repository.
@@ -729,7 +628,7 @@ class Team:
         """
         results = self.gitea.requests_get(Team.GET_MEMBERS % self.id)
         return [
-            User(self.gitea, result["username"], initJson=result) for result in results
+            User.parse_request(self.gitea, result) for result in results
         ]
 
     def get_repos(self):
@@ -740,7 +639,7 @@ class Team:
         """
         results = self.gitea.requests_get(Team.GET_REPOS % self.id)
         return [
-            Repository(self.gitea, self.organization, result["name"], initJson=result)
+            Repository.parse_request(self.gitea, result)
             for result in results
         ]
 
@@ -749,6 +648,19 @@ class Team:
         """
         self.gitea.requests_delete(Team.TEAM_DELETE % self.id)
 
+
+
+class Util:
+
+    @staticmethod
+    def convert_time(time: str) -> datetime:
+        """
+        Gitea returns time in the formt "%Y-%m-%dT%H:%M:%S:%z" but with ":" in time zone notation.
+        This is a somewhat hacky solution.
+        """
+        return datetime.strptime(
+                time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z"
+            )
 
 class Gitea:
     """ Has Gitea-authenticated session. Can Create Users/Organizations/Teams/...
@@ -1067,9 +979,9 @@ class Gitea:
 
     # # #
 
-    def get_user(self) -> User:
+    def get_user(self):
         result = self.requests_get(Gitea.GET_USER)
-        return User(self, "UNINIT", initJson=result)
+        return User.parse_request(self, result)
 
     def get_version(self) -> str:
         result = self.requests_get(Gitea.GITEA_VERSION)
@@ -1083,7 +995,7 @@ class Gitea:
         change_pw=True,
         sendNotify=True,
         sourceId=0,
-    ) -> User:
+    ):
         """ Create User.
 
         Args:
@@ -1121,7 +1033,7 @@ class Gitea:
         else:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
-        return User(self, userName, result)
+        return User.parse_request(self, result)
 
     def create_repo(
         self,
@@ -1174,7 +1086,7 @@ class Gitea:
         else:
             logging.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
-        return Repository(self, repoOwner, repoName, result)
+        return Repository.parse_request(self, result)
 
     def create_org(
         self,
