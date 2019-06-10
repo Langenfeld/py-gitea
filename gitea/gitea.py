@@ -21,9 +21,6 @@ class GiteaApiObject:
         self.id = id
         self.gitea = gitea
 
-    def __repr__(self):
-        return "GiteaApiObject: %i" % (self.id)
-
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
 
@@ -42,9 +39,9 @@ class GiteaApiObject:
     def _request(cls, gitea, args):
         result = cls._get_gitea_api_object(gitea, args)
         api_object = cls.parse_request(gitea, result)
-        api_object = cls.parse_request(gitea, result)
         for key, value in args.items(): # hack: not all necessary request args in api result (e.g. repo name in issue)
-            setattr(api_object, key, value)
+            if not hasattr(api_object, key):
+                setattr(api_object, key, value)
         return api_object
 
     @classmethod
@@ -70,7 +67,6 @@ class GiteaApiObject:
                 setattr(api_object, i, v)
 
 
-
 class Organization(GiteaApiObject):
 
     GET_API_OBJECT = """/orgs/{name}"""  # <org>
@@ -87,7 +83,6 @@ class Organization(GiteaApiObject):
     @classmethod
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
-
 
     # oldstuff
 
@@ -114,7 +109,7 @@ class Organization(GiteaApiObject):
         results = self.gitea.requests_get(
             Organization.ORG_TEAMS_REQUEST % self.username
         )
-        return [Team(self, result["name"], initJson=result) for result in results]
+        return [Team.parse_request(self, result) for result in results]
 
     def get_members(self):
         """ Get all members of this Organization
@@ -245,7 +240,8 @@ class Repository(GiteaApiObject):
         super(Repository, self).__init__(gitea, id=id)
 
     fields_to_parsers = {
-        "owner": lambda gitea, r: User.parse_request(gitea, r),
+        # dont know how to tell apart user and org as owner except form email being empty.
+        "owner": lambda gitea, r: Organization.parse_request(gitea,r) if r["email"] == ""  else User.parse_request(gitea, r),
         "updated_at": lambda gitea, t: Util.convert_time(t)
     }
 
@@ -262,7 +258,7 @@ class Repository(GiteaApiObject):
         results = self.gitea.requests_get(
             Repository.REPO_BRANCHES % (self.owner.username, self.name)
         )
-        return [Branch(self, result["name"], result) for result in results]
+        return [Branch.parse_request(self.gitea, result) for result in results]
 
     def get_issues(self):
         """Get all Issues of this Repository.
@@ -335,13 +331,16 @@ class Repository(GiteaApiObject):
 
 
 class Milestone(GiteaApiObject):
-    """Reperesents a Milestone in Gitea.
-    """
 
     GET_API_OBJECT = """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo, id>
 
     def __init__(self, gitea, id: int):
         super(Milestone, self).__init__(gitea, id=id)
+
+    fields_to_parsers = {
+        "closed_at": lambda gitea, t: Util.convert_time(t),
+        "due_on": lambda gitea, t: Util.convert_time(t)
+    }
 
     @classmethod
     def request(cls, gitea, owner, repo, number):
@@ -396,119 +395,37 @@ class Issue(GiteaApiObject):
         )
 
 
-class Branch:
-    """ Represents a Branch in the Gitea-instance.
+class Branch(GiteaApiObject):
 
-    Attr:
-        name: string
-        commit: Commit
-    """
+    GET_API_OBJECT = """/repos/%s/%s/branches/%s"""  # <owner>, <repo>, <ref>
 
-    REPO_BRANCH = """/repos/%s/%s/branches/%s"""  # <owner>, <repo>, <ref>
+    def __init__(self, gitea, id: int):
+        super(Branch, self).__init__(gitea, id=id)
 
-    def __init__(self, repo: Repository, name: str, initJson: json = None):
-        """ Initializes a Branch.
-
-        Args:
-            repo (Repository): The Repository of this Branch.
-            name (str): The name of this Branch.
-            initJson (dict): Optional, init information for Branch.
-
-        Warning:
-            This does not create a Branch. <sth> does.
-
-        Throws:
-            NotFoundException, if Branch could not be found.
-        """
-        self.gitea = repo.gitea
-        self.__initialize_branch(repo, name, initJson)
-
-    def __initialize_branch(self, repository, name, result):
-        """ Initializing a Branch.
-
-        Args:
-            repository (Repository): The Repository of this Branch.
-            name (str): The name of this Branch.
-            result (dict): Optional, init information for Branch.
-
-        Throws:
-            NotFoundException, if Branch could not be found.
-        """
-        if not result:
-            result = self.gitea.requests_get(
-                Branch.REPO_BRANCH % (repository.owner.username, repository.name, name)
-            )
-        logging.debug(
-            "Branch found: %s/%s/%s"
-            % (repository.owner.username, repository.name, name)
-        )
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.repository = repository
+    @classmethod
+    def request(cls, gitea, owner, repo, ref):
+        return cls._request(gitea, {"owner":owner, "repo":repo, "ref":ref})
 
 
-class Team:
-    """ Represents a Team in the Gitea-instance.
-    """
+class Team(GiteaApiObject):
 
-    # GET_TEAM = """/orgs/%s/teams"""
-    GET_TEAM = """/teams/%s"""  # <id>
+    GET_API_OBJECT = """/teams/{id}"""  # <id>
     ADD_USER = """/teams/%s/members/%s"""  # <id, username to add>
     ADD_REPO = """/teams/%s/repos/%s/%s"""  # <id, org, repo>
     TEAM_DELETE = """/teams/%s"""  # <id>
     GET_MEMBERS = """/teams/%s/members"""  # <id>
     GET_REPOS = """/teams/%s/repos"""  # <id>
 
-    def __init__(self, org: Organization, name: str, initJson: json = None):
-        """ Initializes Team.
+    def __init__(self, gitea, id: int):
+        super(Team, self).__init__(gitea, id=id)
 
-        Args:
-            org (Organization): Organization this team is part of.
-            name (str): Name of the Team.
-            initJson (dict): Optional, init information for Team.
+    fields_to_parsers = {
+        "organization": lambda gitea, o: Organization.parse_request(gitea, o)
+    }
 
-        Warning:
-            This does not create a Team. `gitea.create_team` does.
-
-        Throws:
-            NotFoundException, if Team could not be found.
-        """
-        self.gitea = org.gitea
-        self.__initialize_team(org, name, initJson)
-
-    def __initialize_team(self, org, name, result):
-        """ Initializes Team.
-
-        Args:
-            org (Organization): Organization this team is part of.
-            name (str): Name of the Team.
-            result (dict): Optional, init information for Team.
-
-        Throws:
-            NotFoundException, if Team could not be found.
-        """
-        if not result:
-            for team in org.get_teams():
-                if team.name == name:
-                    result = self.gitea.requests_get(Team.GET_TEAM % team.id)
-                    logging.debug("Team found: %s/%s" % (org.username, name))
-        if not result:
-            logging.warning("Failed to find Team: %s/%s" % (org.username, name))
-            raise NotFoundException("Team could not be Found")
-        for i, v in result.items():
-            setattr(self, i, v)
-        self.organization = org
-
-    def __repr__(self):
-        """ Representation of a Team. Consisting of name and id.
-        """
-        return "Team: %s/%s (%s)" % (self.organization.username, self.name, self.id)
-
-    def __eq__(self, other):
-        if other is not None:
-            if isinstance(other, Team):
-                return other.id == self.id
-        return False
+    @classmethod
+    def request(cls, gitea, id):
+        return cls._request(gitea, {"id":id})
 
     def add(self, toAdd):
         """ Adding User or Repository to Team.
@@ -570,7 +487,6 @@ class Team:
         """ Delete this Team.
         """
         self.gitea.requests_delete(Team.TEAM_DELETE % self.id)
-
 
 
 class Util:
@@ -968,7 +884,7 @@ class Gitea:
         gitignores=None,
         license=None,
         readme="Default",
-    ) -> Repository:
+    ):
         """ Create a Repository.
 
         Args:
@@ -1019,24 +935,8 @@ class Gitea:
         location="",
         website="",
         full_name="",
-    ) -> Organization:
-        """ Creates Organization.
+    ):
 
-        Args:
-            owner (User): The User that will own this Organization.
-            orgName (str): The name of the new Organization.
-            description (str): Short description of the Organization.
-            location (str): Optional, where the Organization is located.
-            website (str): Optional, a website of this Organization.
-            full_name (str): Optional, the full name of the Organization.
-
-        Returns: Organization
-            The newly created Organization.
-
-        Throws:
-            AlreadyExistsException, if this Organization already exists.
-            Exception, if something else went wrong.
-        """
         assert isinstance(owner, User)
         result = self.requests_post(
             Gitea.CREATE_ORG % owner.username,
@@ -1056,7 +956,7 @@ class Gitea:
             raise Exception(
                 "Organization not created... (gitea: %s)" % result["message"]
             )
-        return Organization(self, orgName, initJson=result)
+        return Organization.parse_request(self, result)
 
     def create_team(
         self,
@@ -1073,7 +973,7 @@ class Gitea:
             "repo.releases",
             "repo.ext_wiki",
         ],
-    ) -> Team:
+    ):
         """ Creates a Team.
 
         Args:
@@ -1097,4 +997,4 @@ class Gitea:
             logging.error("Team not created... (gitea: %s)" % result["message"])
             logging.error(result["message"])
             raise Exception("Team not created... (gitea: %s)" % result["message"])
-        return Team(org, name, initJson=result)
+        return Team.parse_request(self, result)
