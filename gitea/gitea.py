@@ -12,6 +12,9 @@ class AlreadyExistsException(Exception):
 class NotFoundException(Exception):
     pass
 
+class ObjectIsInvalid(Exception):
+    pass
+
 
 class GiteaApiObject:
 
@@ -20,6 +23,7 @@ class GiteaApiObject:
     def __init__(self, gitea, id: int):
         self.id = id
         self.gitea = gitea
+        self.deleted = False        #set if .delete was called, so that an exception is risen
 
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
@@ -59,13 +63,23 @@ class GiteaApiObject:
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
-        for i, v in result.items():
-            if i in cls.fields_to_parsers and v is not None:
-                parse_func = cls.fields_to_parsers[i]
-                setattr(api_object, i, parse_func(gitea, v))
-            else:
-                setattr(api_object, i, v)
+        for name, value in result.items():
+            if name in cls.fields_to_parsers and value is not None:
+                parse_func = cls.fields_to_parsers[name]
+                value = parse_func(gitea, value)
+            prop = property(
+                (lambda name: lambda self: self.__get_var(name))(name),
+                (lambda name: lambda self, v: self.__set_var(name, v))(name))
+            setattr(cls, name, prop)
+            setattr(api_object, "__"+name, value)
 
+    def __set_var(self,name,i):
+        setattr(self,"__"+name,i)
+
+    def __get_var(self,name):
+        if self.deleted:
+            raise ObjectIsInvalid()
+        return getattr(self,"__"+name)
 
 class Organization(GiteaApiObject):
 
