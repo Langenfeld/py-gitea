@@ -30,7 +30,7 @@ class GiteaApiObject:
     fields_to_parsers = {}
 
     @classmethod
-    def request(cls, gitea, id):
+    def get(cls, gitea, id):
         """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
         return cls._request(gitea, {"id":id})
@@ -81,7 +81,7 @@ class Organization(GiteaApiObject):
         super(Organization, self).__init__(gitea, id=id)
 
     @classmethod
-    def request(cls, gitea, name):
+    def get(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
     # oldstuff
@@ -165,7 +165,7 @@ class User(GiteaApiObject):
         super(User, self).__init__(gitea, id=id)
 
     @classmethod
-    def request(cls, gitea, name):
+    def get(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
 
@@ -246,7 +246,7 @@ class Repository(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, name):
+    def get(cls, gitea, owner, name):
         return cls._request(gitea, {"owner": owner, "name": name})
 
     def get_branches(self):
@@ -343,7 +343,7 @@ class Milestone(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, repo, number):
+    def get(cls, gitea, owner, repo, number):
         return cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
 
     def full_print(self):
@@ -370,7 +370,7 @@ class Issue(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, repo, number):
+    def get(cls, gitea, owner, repo, number):
         api_object = cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
         return api_object
 
@@ -403,7 +403,7 @@ class Branch(GiteaApiObject):
         super(Branch, self).__init__(gitea, id=id)
 
     @classmethod
-    def request(cls, gitea, owner, repo, ref):
+    def get(cls, gitea, owner, repo, ref):
         return cls._request(gitea, {"owner":owner, "repo":repo, "ref":ref})
 
 
@@ -424,7 +424,7 @@ class Team(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, id):
+    def get(cls, gitea, id):
         return cls._request(gitea, {"id":id})
 
     def add(self, toAdd):
@@ -500,6 +500,7 @@ class Util:
         return datetime.strptime(
                 time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z"
             )
+
 
 class Gitea:
     """ Has Gitea-authenticated session. Can Create Users/Organizations/Teams/...
@@ -997,4 +998,6 @@ class Gitea:
             logging.error("Team not created... (gitea: %s)" % result["message"])
             logging.error(result["message"])
             raise Exception("Team not created... (gitea: %s)" % result["message"])
-        return Team.parse_request(self, result)
+        api_object = Team.parse_request(self, result)
+        api_object.organization = org    #fixes strange behaviour of gitea not returning a valid organization here.
+        return api_object
