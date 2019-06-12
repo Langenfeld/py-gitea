@@ -23,10 +23,13 @@ class GiteaApiObject:
     def __init__(self, gitea, id: int):
         self.id = id
         self.gitea = gitea
-        self.deleted = False        #set if .delete was called, so that an exception is risen
+        self.deleted = False        # set if .delete was called, so that an exception is risen
 
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
+
+    def __str__(self):
+        return "GiteaAPIObject (%s) id: %s"%(type(self),self.id)
 
     def __hash__(self):
         return self.id
@@ -34,7 +37,7 @@ class GiteaApiObject:
     fields_to_parsers = {}
 
     @classmethod
-    def get(cls, gitea, id):
+    def request(cls, gitea, id):
         """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
         return cls._request(gitea, {"id":id})
@@ -95,7 +98,7 @@ class Organization(GiteaApiObject):
         super(Organization, self).__init__(gitea, id=id)
 
     @classmethod
-    def get(cls, gitea, name):
+    def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
     # oldstuff
@@ -123,7 +126,14 @@ class Organization(GiteaApiObject):
         results = self.gitea.requests_get(
             Organization.ORG_TEAMS_REQUEST % self.username
         )
-        return [Team.parse_request(self, result) for result in results]
+        return [Team.parse_request(self.gitea, result) for result in results]
+
+    def get_team_by_name(self, name):
+        teams = self.get_teams()
+        for team in teams:
+            if team.name == name:
+                return team
+        raise NotFoundException()
 
     def get_members(self):
         """ Get all members of this Organization
@@ -179,7 +189,7 @@ class User(GiteaApiObject):
         super(User, self).__init__(gitea, id=id)
 
     @classmethod
-    def get(cls, gitea, name):
+    def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
 
@@ -260,7 +270,7 @@ class Repository(GiteaApiObject):
     }
 
     @classmethod
-    def get(cls, gitea, owner, name):
+    def request(cls, gitea, owner, name):
         return cls._request(gitea, {"owner": owner, "name": name})
 
     def get_branches(self):
@@ -357,7 +367,7 @@ class Milestone(GiteaApiObject):
     }
 
     @classmethod
-    def get(cls, gitea, owner, repo, number):
+    def request(cls, gitea, owner, repo, number):
         return cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
 
     def full_print(self):
@@ -384,7 +394,7 @@ class Issue(GiteaApiObject):
     }
 
     @classmethod
-    def get(cls, gitea, owner, repo, number):
+    def request(cls, gitea, owner, repo, number):
         api_object = cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
         return api_object
 
@@ -417,7 +427,7 @@ class Branch(GiteaApiObject):
         super(Branch, self).__init__(gitea, id=id)
 
     @classmethod
-    def get(cls, gitea, owner, repo, ref):
+    def request(cls, gitea, owner, repo, ref):
         return cls._request(gitea, {"owner":owner, "repo":repo, "ref":ref})
 
 
@@ -438,7 +448,7 @@ class Team(GiteaApiObject):
     }
 
     @classmethod
-    def get(cls, gitea, id):
+    def request(cls, gitea, id):
         return cls._request(gitea, {"id":id})
 
     def add(self, toAdd):
