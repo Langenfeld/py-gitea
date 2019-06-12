@@ -21,7 +21,7 @@ class GiteaApiObject:
     GET_API_OBJECT = "FORMAT/STINING/{argument}"
 
     def __init__(self, gitea, id: int):
-        self.id = id
+        self.__id = id
         self.gitea = gitea
         self.deleted = False        # set if .delete was called, so that an exception is risen
 
@@ -40,7 +40,7 @@ class GiteaApiObject:
     def request(cls, gitea, id):
         """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
-        return cls._request(gitea, {"id":id})
+        return cls._request(gitea, {"id": id})
 
     @classmethod
     def _request(cls, gitea, args):
@@ -64,15 +64,21 @@ class GiteaApiObject:
         """Retrieving an object always as GET_API_OBJECT """
         return gitea.requests_get(cls.GET_API_OBJECT.format(**args))
 
+    editable_fields = []
+
     @classmethod
     def _initialize(cls, gitea, api_object, result):
         for name, value in result.items():
             if name in cls.fields_to_parsers and value is not None:
                 parse_func = cls.fields_to_parsers[name]
                 value = parse_func(gitea, value)
-            prop = property(
-                (lambda name: lambda self: self.__get_var(name))(name),
-                (lambda name: lambda self, v: self.__set_var(name, v))(name))
+            if name in cls.editable_fields:
+                prop = property(
+                    (lambda name: lambda self: self.__get_var(name))(name),
+                    (lambda name: lambda self, v: self.__set_var(name, v))(name))
+            else:
+                prop = property(
+                    (lambda name: lambda self: self.__get_var(name))(name))
             setattr(cls, name, prop)
             setattr(api_object, "__"+name, value)
 
@@ -100,6 +106,8 @@ class Organization(GiteaApiObject):
     @classmethod
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
+
+    editable_fields = ["description", "full_name", "location", "visibility", "website"]
 
     # oldstuff
 
@@ -192,6 +200,9 @@ class User(GiteaApiObject):
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
+    editable_fields = ["active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
+                       "email", "full_name", "location", "login_name", "max_repo_creation", "must_change_password",
+                       "password", "prohibit_login", "source_id", "website"]
 
     def get_repositories(self):
         """ Get all Repositories owned by this User.
