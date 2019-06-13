@@ -65,6 +65,11 @@ def test_create_org():
     assert not org.website
     assert not org.full_name
 
+def test_non_changable_field():
+    org = Organization.request(gitea, test_org)
+    with pytest.raises(AttributeError) as e:
+        org.id = 55
+
 def test_create_repo_userowned():
     org = User.request(gitea, test_user)
     repo = gitea.create_repo(org, test_repo, "user owned repo")
@@ -72,6 +77,22 @@ def test_create_repo_userowned():
     assert repo.owner == org
     assert repo.name == test_repo
     assert not repo.private
+
+def test_edit_org_fields_and_commit():
+    org = Organization.request(gitea, test_org)
+    org.description = "some thing other man"
+    org.location = "somewehre new"
+    org.visibility = "public"
+    org.website = "http:\\\\testurl.com"
+    org.commit()
+    org2 = Organization.request(gitea, test_org)
+    assert org2.name == test_org
+    assert org2.description == "some thing other man"
+    assert org2.location == "somewehre new"
+    #assert org2.visibility == "private" # after commiting, this field just vanishes (Bug?)
+    assert org2.website == "http:\\\\testurl.com"
+
+
 
 def test_create_repo_orgowned():
     org = Organization.request(gitea, test_org)

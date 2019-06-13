@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 logging = logging.getLogger("gitea")
-version = "0.4.4"
+version = "0.4.6"
 
 class AlreadyExistsException(Exception):
     pass
@@ -19,11 +19,13 @@ class ObjectIsInvalid(Exception):
 class GiteaApiObject:
 
     GET_API_OBJECT = "FORMAT/STINING/{argument}"
+    PATCH_API_OBJECT = "FORMAT/STINING/{argument}"
 
     def __init__(self, gitea, id: int):
         self.__id = id
         self.gitea = gitea
         self.deleted = False        # set if .delete was called, so that an exception is risen
+        self.dirty_fields = set()
 
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
@@ -35,6 +37,12 @@ class GiteaApiObject:
         return self.id
 
     fields_to_parsers = {}
+
+    def commit(self):
+        raise NotImplemented()
+
+    def get_dirty_fields(self):
+        return {name: getattr(self,name) for name in self.dirty_fields}
 
     @classmethod
     def request(cls, gitea, id):
@@ -64,7 +72,7 @@ class GiteaApiObject:
         """Retrieving an object always as GET_API_OBJECT """
         return gitea.requests_get(cls.GET_API_OBJECT.format(**args))
 
-    editable_fields = []
+    patchable_fields = set()
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
@@ -72,7 +80,7 @@ class GiteaApiObject:
             if name in cls.fields_to_parsers and value is not None:
                 parse_func = cls.fields_to_parsers[name]
                 value = parse_func(gitea, value)
-            if name in cls.editable_fields:
+            if name in cls.patchable_fields:
                 prop = property(
                     (lambda name: lambda self: self.__get_var(name))(name),
                     (lambda name: lambda self, v: self.__set_var(name, v))(name))
@@ -83,6 +91,7 @@ class GiteaApiObject:
             setattr(api_object, "__"+name, value)
 
     def __set_var(self,name,i):
+        self.dirty_fields.add(name)
         setattr(self,"__"+name,i)
 
     def __get_var(self,name):
@@ -90,13 +99,14 @@ class GiteaApiObject:
             raise ObjectIsInvalid()
         return getattr(self,"__"+name)
 
+
 class Organization(GiteaApiObject):
 
     GET_API_OBJECT = """/orgs/{name}"""  # <org>
+    PATCH_API_OBJECT = """/orgs/{name}"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
     ORG_TEAMS_REQUEST = """/orgs/%s/teams"""  # <org>
     ORG_TEAMS_CREATE = """/orgs/%s/teams"""  # <org>
-    ORG_PATCH = """/orgs/%s"""  # <org>
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
     ORG_DELETE = """/orgs/%s"""  # <org>
 
@@ -107,7 +117,13 @@ class Organization(GiteaApiObject):
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
-    editable_fields = ["description", "full_name", "location", "visibility", "website"]
+    patchable_fields = {"description", "full_name", "location", "visibility", "website"}
+
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"name": self.name}
+        self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
 
     # oldstuff
 
@@ -152,21 +168,6 @@ class Organization(GiteaApiObject):
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
         return [User.parse_request(self.gitea, result) for result in results]
 
-    def set_value(self, values: dict):
-        """ Setting a certain value for an Organization.
-
-        Args:
-            values (dict): Which values should be changed
-                description: string
-                full_name: string
-                location: string
-                website: string
-        """
-        result = self.gitea.requests_patch(
-            Organization.ORG_PATCH % self.username, data=values
-        )
-        return Organization.parse_request(self.gitea, result)
-
     def remove_member(self, username):
         if isinstance(username, User):
             username = username.username
@@ -200,9 +201,9 @@ class User(GiteaApiObject):
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
-    editable_fields = ["active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
+    patchable_fields = {"active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
                        "email", "full_name", "location", "login_name", "max_repo_creation", "must_change_password",
-                       "password", "prohibit_login", "source_id", "website"]
+                       "password", "prohibit_login", "source_id", "website"}
 
     def get_repositories(self):
         """ Get all Repositories owned by this User.
@@ -283,6 +284,10 @@ class Repository(GiteaApiObject):
     @classmethod
     def request(cls, gitea, owner, name):
         return cls._request(gitea, {"owner": owner, "name": name})
+
+    patchable_fields = {"allow_merge_commits", "allow_rebase", "allow_rebase_explicit", "allow_squash_merge",
+                       "archived","default_branch","description","has_issues","has_pull_requests","has_wiki",
+                       "ignore_whitespace_conflicts","name","private","website"}
 
     def get_branches(self):
         """Get all the Branches of this Repository.
@@ -377,6 +382,10 @@ class Milestone(GiteaApiObject):
         "due_on": lambda gitea, t: Util.convert_time(t)
     }
 
+    patchable_fields = {"allow_merge_commits", "allow_rebase", "allow_rebase_explicit", "allow_squash_merge",
+                       "archived",  "default_branch","description",  "has_issues",  "has_pull_requests",
+                       "has_wiki",  "ignore_whitespace_conflicts",  "name",  "private",  "website"}
+
     @classmethod
     def request(cls, gitea, owner, repo, number):
         return cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
@@ -403,6 +412,8 @@ class Issue(GiteaApiObject):
         "assignees": lambda gitea, us: [User.parse_request(gitea, u) for u in us],
         "state": lambda gitea, s: Issue.closed if s == "closed" else Issue.open
     }
+
+    patchable_fields = {"assignee", "assignees", "body", "due_date", "milestone", "state", "title"}
 
     @classmethod
     def request(cls, gitea, owner, repo, number):
@@ -460,6 +471,8 @@ class Team(GiteaApiObject):
     @classmethod
     def request(cls, gitea, id):
         return cls._request(gitea, {"id":id})
+
+    patchable_fields = {"description", "name", "permission", "units"}
 
     def add(self, toAdd):
         """ Adding User or Repository to Team.
