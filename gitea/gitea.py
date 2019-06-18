@@ -199,11 +199,19 @@ class User(GiteaApiObject):
 
     @classmethod
     def request(cls, gitea, name):
-        return cls._request(gitea, {"name": name})
+        api_object = cls._request(gitea, {"name": name})
+        api_object.update_mail()
+        return api_object
 
     patchable_fields = {"active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
                        "email", "full_name", "location", "login_name", "max_repo_creation", "must_change_password",
                        "password", "prohibit_login", "source_id", "website"}
+
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"name": self.name, "email": self.email}
+        self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
 
     def get_repositories(self):
         """ Get all Repositories owned by this User.
@@ -218,11 +226,11 @@ class User(GiteaApiObject):
         """ Update the mail of this user instance to one that is \
         actually correct.
         """
-        prev = self.email
+        prev = self._email
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
         for mail in result:
             if mail["primary"]:
-                self.email = mail["email"]
+                self._email = mail["email"]
                 break
         logging.info(
             "User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email)
