@@ -1,20 +1,69 @@
 # py-gitea
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
-
-
-A very simple API client for Gitea (`1.8.0-rc2`)
+A very simple API client for Gitea (min version `1.8.2`)
 
 This has been somewhat tested (and used!), so most things should work as expected.
 
 Note that not the full Swagger-API is accessible. The implemented part is
 focused on Organization/Team/Repository/User-creation, also putting users in
-Teams in Organizations and adding Repositories to Teams. Sadly the API does not
-do all of what I wanted to use. Still, it should be pretty easy to add almost
-all API-calls.
+Teams in Organizations and adding Repositories to Teams.
+
+## Usage
+
+First get a `gitea` object wrapping access and authentication (via an api token) for your gitea instance:
+
+```
+gitea = Gitea(URL, TOKEN)
+```
+
+Operations like requesting the Gitea version or authentication user can be requested directly from the `gitea` object:
+
+```
+print("Gitea Version: " + gitea.get_version())
+print("API-Token belongs to user: " + gitea.get_user().username)
+```
+
+Adding entities like Users, Organizations, ...  also is done via the gitea object.
+
+```
+user = gitea.create_user("Test Testson", "test@test.test", "password")
+```
+
+All operations on entities in gitea are then accomplished via the according wrapper objects for those entities.
+Each of those objects has a `.request` method that creates an entity according to your gitea instance. 
+
+```
+other_user = User.request(gitea, "OtherUserName")
+print(other_user.username)
+```
+
+Note that the fields of the User, Organization,... classes are dynamically created at runtime, and thus not visible during divelopment. Refer to the Gitea-API documentation for the fields names. 
 
 
-# tests
+Fields that can not be altered via gitea-api, are read only. After altering a field, the `.commit` method of the according object must be called to synchronize the changed fields with your gitea instance.
+
+```
+org = Organization.request(gitea, test_org)
+org.description = "some new description"
+org.location = "some new location"
+org.commit()
+```
+
+An entity in gitea can be deleted by calling delete.
+```
+org.delete()
+```
+
+All entity objects do have methods to execute some of the requests possible though the gitea-api:
+```
+org = Organization.request(gitea, ORGNAME)
+teams = org.get_teams()
+for team in teams:
+	repos = team.get_repos()
+```
+
+
+## Tests
 Can be run like this:
 
 ```python3 -m pytest tests.py```
