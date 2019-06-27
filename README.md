@@ -60,6 +60,8 @@ org = Organization.request(gitea, ORGNAME)
 teams = org.get_teams()
 for team in teams:
 	repos = team.get_repos()
+	for repo in repos:
+		print(repo.name)
 ```
 
 
