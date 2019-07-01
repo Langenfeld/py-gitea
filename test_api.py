@@ -126,10 +126,10 @@ def test_delete_repo_orgowned():
 
 def test_delete_team():
     org = Organization.request(gitea, "AlreadyPresentOrg")
-    team = Team.request(org, test_team)
+    team = org.get_team(test_team)
     team.delete()
     with pytest.raises(NotFoundException) as e:
-        Team.request(org, test_team)
+        team = org.get_team(test_team)
 
 def test_delete_org():
     org = Organization.request(gitea, test_org)

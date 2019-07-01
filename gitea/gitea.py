@@ -152,6 +152,13 @@ class Organization(GiteaApiObject):
         )
         return [Team.parse_request(self.gitea, result) for result in results]
 
+    def get_team(self, name):
+        teams = self.get_teams()
+        for team in teams:
+            if team.name == name:
+                return team
+        raise NotFoundException("Team not existent in organization.")
+
     def get_team_by_name(self, name):
         teams = self.get_teams()
         for team in teams:
@@ -477,7 +484,7 @@ class Team(GiteaApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, id):
+    def request(cls, gitea, organization, team):
         return cls._request(gitea, {"id":id})
 
     patchable_fields = {"description", "name", "permission", "units"}
@@ -1056,5 +1063,5 @@ class Gitea:
             logging.error(result["message"])
             raise Exception("Team not created... (gitea: %s)" % result["message"])
         api_object = Team.parse_request(self, result)
-        api_object.organization = org    #fixes strange behaviour of gitea not returning a valid organization here.
+        setattr(api_object, "_organization", org)    #fixes strange behaviour of gitea not returning a valid organization here.
         return api_object
