@@ -29,7 +29,9 @@ test_team = "team_" +uuid.uuid4().hex[:8] # team names seem to have a rather low
 test_repo = "repo_" +uuid.uuid4().hex[:8]
 
 def test_token_owner():
-    assert gitea.get_user().username == "test", "Token user not 'test'."
+    user = gitea.get_user()
+    assert user.username == "test", "Token user not 'test'."
+    assert user.is_admin, "Testuser is not Admin - Tests may fail"
 
 def test_gitea_version():
     assert gitea.get_version() == "1.8.2", "Version changed. Updated?"
@@ -49,7 +51,6 @@ def test_fail_get_non_existent_repo():
 def test_create_user():
     email = test_user + "@example.org"
     user = gitea.create_user(test_user, email, "abcdefg123")
-    user.update_mail()
     assert user.username == test_user
     assert user.login == test_user
     assert user.email == email

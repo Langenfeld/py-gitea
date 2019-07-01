@@ -88,16 +88,16 @@ class GiteaApiObject:
                 prop = property(
                     (lambda name: lambda self: self.__get_var(name))(name))
             setattr(cls, name, prop)
-            setattr(api_object, "__"+name, value)
+            setattr(api_object, "_"+name, value)
 
     def __set_var(self,name,i):
         self.dirty_fields.add(name)
-        setattr(self,"__"+name,i)
+        setattr(self,"_"+name,i)
 
     def __get_var(self,name):
         if self.deleted:
             raise ObjectIsInvalid()
-        return getattr(self,"__"+name)
+        return getattr(self,"_"+name)
 
 
 class Organization(GiteaApiObject):
@@ -928,7 +928,9 @@ class Gitea:
         else:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
-        return User.parse_request(self, result)
+        user = User.parse_request(self, result)
+        user.update_mail()
+        return user
 
     def create_repo(
         self,
