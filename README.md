@@ -8,6 +8,8 @@ Note that not the full Swagger-API is accessible. The implemented part is
 focused on Organization/Team/Repository/User-creation, also putting users in
 Teams in Organizations and adding Repositories to Teams.
 
+Originally forked from https://github.com/m301/py-gitea.
+
 ## Usage
 
 First get a `gitea` object wrapping access and authentication (via an api token) for your gitea instance:
