@@ -70,6 +70,6 @@ for team in teams:
 ## Tests
 Can be run like this:
 
-```python3 -m pytest tests.py```
+```python3 -m pytest test_api.py```
 
 Make sure to have a gitea-instance running on `http://localhost:3000`, and an admin-user token at `.token`.
