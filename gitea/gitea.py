@@ -4,7 +4,6 @@ import logging
 from datetime import datetime
 
 logging = logging.getLogger("gitea")
-version = "0.4.6"
 
 class AlreadyExistsException(Exception):
     pass

@@ -5,9 +5,9 @@ from .gitea import (
     Team,
     Repository,
     Branch,
-    version,
     NotFoundException,
     AlreadyExistsException,
     Issue,
     Milestone,
 )
+
