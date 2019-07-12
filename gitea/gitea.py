@@ -348,29 +348,11 @@ class Repository(GiteaApiObject):
                 issues.append(issue)
         return issues
 
-    def get_user_time(self, username, ignore_above=8):
-        """Get the time a user spent working on this Repository.
-
-        Args:
-            username (str): Username of the user
-            ignore_above (int): above what amount this number should be taken as invalid (in hours)
-
-        Returns: int
-            Accumulated time the user worked in this Repository.
-        """
+    def get_user_time(self, username):
         if isinstance(username, User):
             username = username.username
-        results = self.gitea.requests_get(
-            Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
-        )
-        time = (
-            sum(
-                filter(
-                    lambda t: t < ignore_above * 3600, map(lambda d: d["time"], results)
-                )
-            )
-            // 60
-        ) / 60
+        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
+        time = sum(r["time"] for r in results)
         return time
 
     def delete(self):
@@ -443,15 +425,10 @@ class Issue(GiteaApiObject):
             )
         )
 
-    def get_time(self, user_id=None):
+    def get_time(self, user: User)-> int:
         """ Returns the summed time on this issue for this user."""
-        return sum(
-            (t["time"] // 60) / 60
-            for t in self.gitea.requests_get(
-                Issue.GET_TIME % (self.owner, self.repo, self.number)
-            )
-            if user_id and t["user_id"] == user_id
-        )
+        results = self.gitea.requests_get(Issue.GET_TIME % (self.owner, self.repo, self.number))
+        return sum(result["time"] for result in results if result["user_id"] == user.id)
 
 
 class Branch(GiteaApiObject):
