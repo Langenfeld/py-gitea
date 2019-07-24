@@ -1,4 +1,5 @@
 import json
+
 import requests
 import logging
 from datetime import datetime
@@ -20,7 +21,7 @@ class GiteaApiObject:
     GET_API_OBJECT = "FORMAT/STINING/{argument}"
     PATCH_API_OBJECT = "FORMAT/STINING/{argument}"
 
-    def __init__(self, gitea, id: int):
+    def __init__(self, gitea, id):
         self.__id = id
         self.gitea = gitea
         self.deleted = False        # set if .delete was called, so that an exception is risen
@@ -108,6 +109,7 @@ class Organization(GiteaApiObject):
     ORG_TEAMS_CREATE = """/orgs/%s/teams"""  # <org>
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
     ORG_DELETE = """/orgs/%s"""  # <org>
+    ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea, id: int):
         super(Organization, self).__init__(gitea, id=id)
@@ -189,6 +191,14 @@ class Organization(GiteaApiObject):
         for repo in self.get_repositories():
             repo.delete()
         self.gitea.requests_delete(Organization.ORG_DELETE % self.username)
+
+    def get_heatmap(self):
+        results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
+        results = [
+            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
+            for result in results
+        ]
+        return results
 
 
 class User(GiteaApiObject):
@@ -344,7 +354,7 @@ class Repository(GiteaApiObject):
                 issue = Issue.parse_request(self.gitea, result)
                 #again a hack because this infomation gets lost after the api call
                 setattr(issue, "repo", self.name)
-                setattr(issue, "owner", self.owner.username)
+                setattr(issue, "owner", self.owner)
                 issues.append(issue)
         return issues
 
@@ -390,10 +400,32 @@ class Milestone(GiteaApiObject):
         return str(vars(self))
 
 
+class Comment(GiteaApiObject):
+
+    GET_API_OBJECT = """NONE"""
+    PATCH_API_OBJECT = "/repos/{owner}/{repo}/issues/comments/{id}"
+
+    def __init__(self, gitea, id: int):
+        super(Comment, self).__init__(gitea, id=id)
+
+    fields_to_parsers = {
+        "user": lambda gitea, r: User.parse_request(gitea, r),
+        "created_at": lambda gitea, t: Util.convert_time(t),
+        "updated_at": lambda gitea, t: Util.convert_time(t)
+    }
+
+    patchable_fields = {"body"}
+
+    @classmethod
+    def request(cls, gitea, args):
+        raise NotImplemented("this method is not supported by the Gitea Api")
+
+
 class Issue(GiteaApiObject):
 
     GET_API_OBJECT = """/repos/{owner}/{repo}/issues/{number}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
+    GET_COMMENTS = """/repos/%s/%s/issues/comments"""
 
     closed = "closed"
     open = "open"
@@ -406,7 +438,7 @@ class Issue(GiteaApiObject):
         "user": lambda gitea, u: User.parse_request(gitea, u),
         "assignee": lambda gitea, u: User.parse_request(gitea, u),
         "assignees": lambda gitea, us: [User.parse_request(gitea, u) for u in us],
-        "state": lambda gitea, s: Issue.closed if s == "closed" else Issue.open
+        "state": lambda gitea, s: Issue.closed if s == "closed" else Issue.open,
     }
 
     patchable_fields = {"assignee", "assignees", "body", "due_date", "milestone", "state", "title"}
@@ -426,9 +458,14 @@ class Issue(GiteaApiObject):
         )
 
     def get_time(self, user: User)-> int:
-        """ Returns the summed time on this issue for this user."""
-        results = self.gitea.requests_get(Issue.GET_TIME % (self.owner, self.repo, self.number))
-        return sum(result["time"] for result in results if result["user_id"] == user.id)
+        results = self.gitea.requests_get(Issue.GET_TIME % (self.owner.username, self.repo, self.number))
+        return sum(result["time"] for result in results if result and result["user_id"] == user.id)
+
+
+    def get_comments(self):
+        results = self.gitea.requests_get(Issue.GET_COMMENTS%(self.owner.username, self.repo))
+        return [Comment.parse_request(self.gitea, result) for result in results]
+
 
 
 class Branch(GiteaApiObject):
@@ -611,19 +648,12 @@ class Gitea:
             self.get_url(endpoint), headers=self.headers, params=params
         )
         if request.status_code not in [200, 201]:
+            logging.error("Received status code: %s (%s)" % (request.status_code, request.url))
             if request.status_code in [404]:
                 raise NotFoundException()
-            logging.error(
-                "Received status code: %s (%s)" % (request.status_code, request.url)
-            )
             if request.status_code in [403]:
-                raise Exception(
-                    "Unauthorized: %s - Check your permissions and try again!"
-                    % request.url
-                )
-            raise Exception(
-                "Received status code: %s (%s)" % (request.status_code, request.url)
-            )
+                raise Exception("Unauthorized: %s - Check your permissions and try again!"% request.url)
+            raise Exception("Received status code: %s (%s)" % (request.status_code, request.url))
         return self.parse_result(request)
 
     def requests_put(self, endpoint):
