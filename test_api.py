@@ -3,10 +3,10 @@ import os
 import pytest
 import uuid
 
-from .gitea import Gitea, User, Organization, Team, Repository, version
+from .gitea import Gitea, User, Organization, Team, Repository
 from .gitea import NotFoundException, AlreadyExistsException
 
-assert version >= "0.4.0"
+
 gitea = None
 
 # put a ".token" file into your directory containg only the token for gitea
