@@ -61,6 +61,8 @@ class BasicGiteaApiObject:
             setattr(api_object, "_"+name, value)
 
     def __set_var(self,name,i):
+        if self.deleted:
+            raise ObjectIsInvalid()
         self.dirty_fields.add(name)
         setattr(self,"_"+name,i)
 

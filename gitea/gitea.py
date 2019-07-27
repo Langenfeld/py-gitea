@@ -1,4 +1,5 @@
 import json
+from typing import List, Tuple, Dict
 
 import requests
 import logging
@@ -36,31 +37,12 @@ class Organization(GiteaApiObject):
         self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
         self.dirty_fields = {}
 
-    # oldstuff
+    def get_repositories(self) -> List[GiteaApiObject]:
+        results = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST % self.username)
+        return [Repository.parse_request(self.gitea, result) for result in results]
 
-    def get_repositories(self):
-        """ Get the Repositories of this Organization.
-
-        Returns: [Repository]
-            A list of Repositories this Organization is hosting.
-        """
-        results = self.gitea.requests_get(
-            Organization.ORG_REPOS_REQUEST % self.username
-        )
-        return [
-            Repository.parse_request(self.gitea, result)
-            for result in results
-        ]
-
-    def get_teams(self):
-        """ Get the Teams in this Organization
-
-        Returns: [Team]
-            A list of Teams in this Organization.
-        """
-        results = self.gitea.requests_get(
-            Organization.ORG_TEAMS_REQUEST % self.username
-        )
+    def get_teams(self) -> List[GiteaApiObject]:
+        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.username)
         return [Team.parse_request(self.gitea, result) for result in results]
 
     def get_team(self, name):
@@ -70,44 +52,24 @@ class Organization(GiteaApiObject):
                 return team
         raise NotFoundException("Team not existent in organization.")
 
-    def get_team_by_name(self, name):
-        teams = self.get_teams()
-        for team in teams:
-            if team.name == name:
-                return team
-        raise NotFoundException()
-
-    def get_members(self):
-        """ Get all members of this Organization
-
-        Returns: [User]
-            A list of Users who are members of this Organization.
-        """
+    def get_members(self) -> List[GiteaApiObject]:
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
         return [User.parse_request(self.gitea, result) for result in results]
 
-    def remove_member(self, username):
-        if isinstance(username, User):
-            username = username.username
-        path = "/orgs/" + self.username + "/members/" + username
+    def remove_member(self, user: GiteaApiObject):
+        path = "/orgs/" + self.username + "/members/" + user.username
         self.gitea.requests_delete(path)
 
     def delete(self):
-        """ Delete this Organization. Invalidates this Objects data.
-        Also deletes all Repositories and Teams associated with this
-        Organization.
-        """
-        # TODO: Delete Repos, Teams, Users (except authenticated user)
+        """ Delete this Organization. Invalidates this Objects data. Also deletes all Repositories owned by the User"""
         for repo in self.get_repositories():
             repo.delete()
         self.gitea.requests_delete(Organization.ORG_DELETE % self.username)
+        self.deleted = True
 
-    def get_heatmap(self):
+    def get_heatmap(self) -> List[Tuple[datetime, int]]:
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
-        results = [
-            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
-            for result in results
-        ]
+        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
 
@@ -124,7 +86,7 @@ class User(GiteaApiObject):
         super(User, self).__init__(gitea, id=id)
 
     @classmethod
-    def request(cls, gitea, name):
+    def request(cls, gitea, name) -> GiteaApiObject:
         api_object = cls._request(gitea, {"name": name})
         #api_object.update_mail()
         return api_object
@@ -139,61 +101,29 @@ class User(GiteaApiObject):
         self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
         self.dirty_fields = {}
 
-    def get_repositories(self):
-        """ Get all Repositories owned by this User.
-
-        Returns: [Repository]
-            A list of Repositories this user owns.
-        """
+    def get_repositories(self) -> List[GiteaApiObject]:
+        """ Get all Repositories owned by this User."""
         results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
         return [Repository.parse_request(self.gitea, result) for result in results]
 
     def update_mail(self):
-        """ Update the mail of this user instance to one that is \
-        actually correct.
-        """
+        """ Request email adress with "sudo" set, so that admin accounts can access hidden email adresses. """
         prev = self._email
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
         for mail in result:
             if mail["primary"]:
                 self._email = mail["email"]
                 break
-        logging.info(
-            "User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email)
-        )
-
-    def set_value(self, email: str, values: dict):
-        """ Set certain values of this user.
-
-        Args:
-            email (str): The actual email of the User.
-            values (dict): The (updated) values.
-
-        Warning:
-            The email you get from the API might not be sufficient.
-            It needs to be the actual mail in the database.
-        """
-        # the request requires email to be set...
-        values["email"] = email
-        result = self.gitea.requests_patch(User.USER_PATCH % self.username, data=values)
-        self.__initialize_user(self.username, result)
+        logging.info("User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email))
 
     def delete(self):
-        """ Deletes this User. Also deletes all Repositories he owns.
-
-        Warning:
-            Invalidates this Objects Data.
-        """
-        # TODO: Delete all Repositories of this user.
-        # Might not be deleteable otherwise.
+        """ Deletes this User. Also deletes all Repositories he owns."""
         self.gitea.requests_delete(User.ADMIN_DELETE_USER % self.username)
+        self.deleted = True
 
-    def get_heatmap(self):
+    def get_heatmap(self) -> List[Tuple[datetime, int]]:
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
-        results = [
-            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
-            for result in results
-        ]
+        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
 
@@ -223,40 +153,24 @@ class Repository(GiteaApiObject):
                        "archived","default_branch","description","has_issues","has_pull_requests","has_wiki",
                        "ignore_whitespace_conflicts","name","private","website"}
 
-    def get_branches(self):
-        """Get all the Branches of this Repository.
-
-        Returns: [Branch]
-            A list of Branches of this Repository.
-        """
-        results = self.gitea.requests_get(
-            Repository.REPO_BRANCHES % (self.owner.username, self.name)
-        )
+    def get_branches(self) -> List[GiteaApiObject]:
+        """Get all the Branches of this Repository."""
+        results = self.gitea.requests_get(Repository.REPO_BRANCHES % (self.owner.username, self.name))
         return [Branch.parse_request(self.gitea, result) for result in results]
 
-    def get_issues(self):
-        """Get all Issues of this Repository.
+    def get_issues(self) -> List[GiteaApiObject]:
+        """Get all Issues of this Repository (open and closed)"""
+        return self.get_issues_state(Issue.open) + self.get_issues_state(Issue.closed)
 
-        Returns: [Issue]
-            A list of Issues of this Repository.
-        """
-        return self.get_issues_state("open") + self.get_issues_state("closed")
-
-    def get_issues_state(self, state):
-        """Get either open or closed Issues of this Repository.
-
-        Returns: [Issue]
-            A list of Issues of this Repository.
-        """
-        assert state in ["open", "closed"]
+    def get_issues_state(self, state) -> List[GiteaApiObject]:
+        """Get issues of state Issue.open or Issue.closed of a repository."""
+        assert state in [Issue.open, Issue.closed]
         index = 1
         issues = []
         while True:
             # q=&type=all&sort=&state=open&milestone=0&assignee=0
-            results = self.gitea.requests_get(
-                Repository.REPO_ISSUES % (self.owner.username, self.name),
-                params={"page": index, "state": state},
-            )
+            results = self.gitea.requests_get(Repository.REPO_ISSUES % (self.owner.username, self.name),
+                params={"page": index, "state": state})
             if len(results) <= 0:
                 break
             index += 1
@@ -268,7 +182,7 @@ class Repository(GiteaApiObject):
                 issues.append(issue)
         return issues
 
-    def get_user_time(self, username):
+    def get_user_time(self, username) -> float:
         if isinstance(username, User):
             username = username.username
         results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
@@ -276,14 +190,8 @@ class Repository(GiteaApiObject):
         return time
 
     def delete(self):
-        """ Deletes this Repository.
-
-        Warning:
-            Invalidates this objects Data.
-        """
-        self.gitea.requests_delete(
-            Repository.REPO_DELETE % (self.owner.username, self.name)
-        )
+        self.gitea.requests_delete(Repository.REPO_DELETE % (self.owner.username, self.name))
+        self.deleted = True
 
 
 class Milestone(GiteaApiObject):
@@ -306,13 +214,9 @@ class Milestone(GiteaApiObject):
     def request(cls, gitea, owner, repo, number):
         return cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
 
-    def full_print(self):
-        return str(vars(self))
-
 
 class Comment(BasicGiteaApiObject):
 
-    GET_API_OBJECT = """NONE"""
     PATCH_API_OBJECT = "/repos/{owner}/{repo}/issues/comments/{id}"
 
     def __init__(self, gitea, id: int):
@@ -353,24 +257,13 @@ class Issue(GiteaApiObject):
         api_object = cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
         return api_object
 
-    def get_estimate_sum(self):
-        """Returns the summed estimate-labeled values"""
-        return sum(
-            map(
-                lambda l: float(l["name"][10:]),
-                filter(lambda l: l["name"][:10] == "estimate: ", self.labels),
-            )
-        )
-
-    def get_time(self, user: User)-> int:
+    def get_time(self, user: User) -> int:
         results = self.gitea.requests_get(Issue.GET_TIME % (self.owner.username, self.repo, self.number))
         return sum(result["time"] for result in results if result and result["user_id"] == user.id)
 
-
-    def get_comments(self):
+    def get_comments(self) -> List[GiteaApiObject]:
         results = self.gitea.requests_get(Issue.GET_COMMENTS%(self.owner.username, self.repo))
         return [Comment.parse_request(self.gitea, result) for result in results]
-
 
 
 class Branch(GiteaApiObject):
@@ -407,87 +300,37 @@ class Team(GiteaApiObject):
 
     patchable_fields = {"description", "name", "permission", "units"}
 
-    def add(self, toAdd):
-        """ Adding User or Repository to Team.
-
-        Args:
-            toAdd (Repository/User): the object to add to this Team
-        """
-        if isinstance(toAdd, Repository):
-            self.add_repo(toAdd)
-            return
-        if isinstance(toAdd, User):
-            self.add_user(toAdd)
-            return
-        logging.error("Could not add %s" % str(toAdd))
-        raise Exception("Could not add" + str(type(toAdd)))
-
     def add_user(self, user: User):
-        """ Adding a User to this Team.
-
-        Args:
-            user (User): User to be added.
-        """
         self.gitea.requests_put(Team.ADD_USER % (self.id, user.login))
 
     def add_repo(self, repo: Repository):
-        """ Adding a Repository to this Team.
-
-        Args:
-            repo (Repository): Repository to be added.
-        """
-        self.gitea.requests_put(
-            Team.ADD_REPO % (self.id, self.organization.username, repo.name)
-        )
+        self.gitea.requests_put(Team.ADD_REPO % (self.id, self.organization.username, repo.name))
 
     def get_members(self):
-        """ Get all members of this Team.
-
-        Returns: [User]
-            A list of Users in this Team.
-        """
+        """ Get all users assigned to the team. """
         results = self.gitea.requests_get(Team.GET_MEMBERS % self.id)
-        return [
-            User.parse_request(self.gitea, result) for result in results
-        ]
+        return [User.parse_request(self.gitea, result) for result in results]
 
     def get_repos(self):
-        """ Get all repos of this Team.
-
-        Returns: [Repository]
-            A list of Repositories of this Team
-        """
+        """ Get all repos of this Team."""
         results = self.gitea.requests_get(Team.GET_REPOS % self.id)
-        return [
-            Repository.parse_request(self.gitea, result)
-            for result in results
-        ]
+        return [Repository.parse_request(self.gitea, result) for result in results]
 
     def delete(self):
-        """ Delete this Team.
-        """
         self.gitea.requests_delete(Team.TEAM_DELETE % self.id)
+        self.deleted = True
 
 
 class Util:
 
     @staticmethod
     def convert_time(time: str) -> datetime:
-        """
-        Gitea returns time in the formt "%Y-%m-%dT%H:%M:%S:%z" but with ":" in time zone notation.
-        This is a somewhat hacky solution.
-        """
-        return datetime.strptime(
-                time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z"
-            )
+        """ Parsing of strange Gitea time format ("%Y-%m-%dT%H:%M:%S:%z" but with ":" in time zone notation)"""
+        return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
 
 
 class Gitea:
-    """ Has Gitea-authenticated session. Can Create Users/Organizations/Teams/...
-
-    Attr:
-        A few. Look at them.
-    """
+    """ Object to establish a session with Gitea. """
 
     ADMIN_CREATE_USER = """/admin/users"""
     ADMIN_REPO_CREATE = """/admin/users/%s/repos"""  # <ownername>
@@ -496,45 +339,22 @@ class Gitea:
     CREATE_ORG = """/admin/users/%s/orgs"""  # <username>
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
-    def __init__(self, url, token):
-        """ Initializing Gitea-instance.
-
-        Args:
-            url (str): URL of Gitea-server.
-            token (str): Token of acting User.
-        """
-        self.headers = {
-            "Authorization": "token " + token,
-            "Content-type": "application/json",
-        }
-        self.url = url
+    def __init__(self, gitea_url: str, token_text: str):
+        """ Initializing Gitea-instance."""
+        self.headers = {"Authorization": "token " + token_text, "Content-type": "application/json"}
+        self.url = gitea_url
         self.requests = requests.Session()
         self.requests.mount('http://', CachingHTTPAdapter())
         self.requests.mount('https://', CachingHTTPAdapter())
 
-    def get_url(self, endpoint):
-        """ Returns the full API-URL.
-
-        Args:
-            endpoint (str): Path to be added on API-Path.
-
-        Returns: str
-            Combined total API endpoint.
-        """
+    def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
         logging.debug("Url: %s" % url)
         return url
 
     @staticmethod
-    def parse_result(result):
-        """ Parses the result-JSON to a dict.
-
-        Args:
-            result (str): Result-Object from requests (library).
-
-        Returns: dict
-            Parsed from JSON
-        """
+    def parse_result(result) -> Dict:
+        """ Parses the result-JSON to a dict. """
         if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
@@ -552,7 +372,7 @@ class Gitea:
             Exception, if answer status code is not ok.
         """
         request = self.requests.get(
-            self.get_url(endpoint), headers=self.headers, params=params
+            self.__get_url(endpoint), headers=self.headers, params=params
         )
         if request.status_code not in [200, 201]:
             logging.error("Received status code: %s (%s)" % (request.status_code, request.url))
@@ -572,7 +392,7 @@ class Gitea:
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.put(self.get_url(endpoint), headers=self.headers)
+        request = self.requests.put(self.__get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
             logging.error(
                 "Received status code: %s (%s) %s"
@@ -592,7 +412,7 @@ class Gitea:
         Throws:
             Exception, if answer status code is not ok.
         """
-        request = self.requests.delete(self.get_url(endpoint), headers=self.headers)
+        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
             logging.error(
                 "Received status code: %s (%s)" % (request.status_code, request.url)
@@ -617,7 +437,7 @@ class Gitea:
             Exception, if status code not ok
         """
         request = self.requests.post(
-            self.get_url(endpoint), headers=self.headers, data=json.dumps(data)
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
         if request.status_code not in [200, 201]:
             if (
@@ -652,7 +472,7 @@ class Gitea:
             Exception, if status code not ok.
         """
         request = self.requests.patch(
-            self.get_url(endpoint), headers=self.headers, data=json.dumps(data)
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
         if request.status_code not in [200, 201]:
             logging.error(
