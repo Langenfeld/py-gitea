@@ -34,7 +34,7 @@ def test_token_owner():
     assert user.is_admin, "Testuser is not Admin - Tests may fail"
 
 def test_gitea_version():
-    assert gitea.get_version() == "1.8.2", "Version changed. Updated?"
+    assert gitea.get_version() == "1.9.0", "Version changed. Updated?"
 
 def test_fail_get_non_existent_user():
     with pytest.raises(NotFoundException) as e:

@@ -360,67 +360,30 @@ class Gitea:
         return {}
 
     def requests_get(self, endpoint, params={}):
-        """ Get parsed result from API-endpoint.
-
-        Args:
-            endpoint (str): Endpoint to request from.
-
-        Returns: (dict)
-            Parsed JSON-answer from the API.
-
-        Throws:
-            Exception, if answer status code is not ok.
-        """
-        request = self.requests.get(
-            self.__get_url(endpoint), headers=self.headers, params=params
-        )
+        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
         if request.status_code not in [200, 201]:
-            logging.error("Received status code: %s (%s)" % (request.status_code, request.url))
+            message = "Received status code: %s (%s)" % (request.status_code, request.url)
+            logging.error(message)
             if request.status_code in [404]:
                 raise NotFoundException()
             if request.status_code in [403]:
                 raise Exception("Unauthorized: %s - Check your permissions and try again!"% request.url)
-            raise Exception("Received status code: %s (%s)" % (request.status_code, request.url))
+            raise Exception(message)
         return self.parse_result(request)
 
     def requests_put(self, endpoint):
-        """ Get parsed result from API-endpoint.
-
-        Args:
-            endpoint (str): Endpoint to request from.
-
-        Throws:
-            Exception, if answer status code is not ok.
-        """
         request = self.requests.put(self.__get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
-            logging.error(
-                "Received status code: %s (%s) %s"
-                % (request.status_code, request.url, request.text)
-            )
-            raise Exception(
-                "Received status code: %s (%s) %s"
-                % (request.status_code, request.url, request.text)
-            )
+            message = "Received status code: %s (%s) %s"%(request.status_code, request.url, request.text)
+            logging.error(message)
+            raise Exception(message)
 
     def requests_delete(self, endpoint):
-        """ Get parsed result from API-endpoint.
-
-        Args:
-            endpoint (str): Endpoint to request from.
-
-        Throws:
-            Exception, if answer status code is not ok.
-        """
         request = self.requests.delete(self.__get_url(endpoint), headers=self.headers)
         if request.status_code not in [204]:
-            logging.error(
-                "Received status code: %s (%s)" % (request.status_code, request.url)
-            )
-            raise Exception(
-                "Received status code: %s (%s) %s"
-                % (request.status_code, request.url, vars(request))
-            )
+            message = "Received status code: %s (%s)" % (request.status_code, request.url)
+            logging.error(message)
+            raise Exception(message)
 
     def requests_post(self, endpoint, data):
         """ Post data to API-endpoint.
