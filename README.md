@@ -1,6 +1,6 @@
 # py-gitea
 
-A very simple API client for Gitea (min version `1.8.2`)
+A very simple API client for Gitea version 1.9.0.
 
 This has been somewhat tested (and used!), so most things should work as expected.
 
@@ -68,8 +68,9 @@ for team in teams:
 
 
 ## Tests
-Can be run like this:
+
+Tests can be run with: 
 
 ```python3 -m pytest test_api.py```
 
-Make sure to have a gitea-instance running on `http://localhost:3000`, and an admin-user token at `.token`.
+Make sure to have a gitea-instance running on `http://localhost:3000`, and an admin-user token at `.token`. 
