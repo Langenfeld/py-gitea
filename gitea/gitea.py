@@ -339,13 +339,14 @@ class Gitea:
     CREATE_ORG = """/admin/users/%s/orgs"""  # <username>
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
-    def __init__(self, gitea_url: str, token_text: str):
+    def __init__(self, gitea_url: str, token_text: str, cached = False):
         """ Initializing Gitea-instance."""
         self.headers = {"Authorization": "token " + token_text, "Content-type": "application/json"}
         self.url = gitea_url
         self.requests = requests.Session()
-        self.requests.mount('http://', CachingHTTPAdapter())
-        self.requests.mount('https://', CachingHTTPAdapter())
+        if cached:
+            self.requests.mount('http://', CachingHTTPAdapter())
+            self.requests.mount('https://', CachingHTTPAdapter())
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
