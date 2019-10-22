@@ -80,6 +80,7 @@ class User(GiteaApiObject):
     USER_REPOS_REQUEST = """/users/%s/repos"""  # <org>
     USER_PATCH = """/admin/users/%s"""  # <username>
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
+    ADMIN_EDIT_USER = """/admin/users/{name}"""  # <username>
     USER_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea, id: int):
@@ -97,8 +98,9 @@ class User(GiteaApiObject):
 
     def commit(self):
         values = self.get_dirty_fields()
+        values.update({"email": self.email}) # this requrest must always contain the email for identifying users
         args = {"name": self.username, "email": self.email}
-        self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
+        self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
 
     def get_repositories(self) -> List[GiteaApiObject]:
@@ -119,7 +121,7 @@ class User(GiteaApiObject):
 
     def delete(self):
         """ Deletes this User. Also deletes all Repositories he owns."""
-        self.gitea.requests_delete(User.ADMIN_DELETE_USER % self.username)
+        self.gitea.requests_delete(User.ADMIN_DELTE_USER % self.username)
         self.deleted = True
 
     def get_heatmap(self) -> List[Tuple[datetime, int]]:
@@ -583,49 +585,17 @@ class Gitea:
                 return user
         return None
 
-    def create_user(
-        self,
-        userName: str,
-        email: str,
-        password: str,
-        change_pw=True,
-        sendNotify=True,
-        sourceId=0,
-    ):
+    def create_user(self, userName: str, email: str, password: str, change_pw=True, sendNotify=True, sourceId=0):
         """ Create User.
-
-        Args:
-            userName (str): Name of the User that should be created.
-            email (str): Email of the User that should be created.
-            password (str): Password of the User that should be created.
-            change_pw (bool): Optional, True, if the User should change his Password
-            sendNotify (bool): Optional, True, if the User should be notified by Mail.
-            sourceId (int): Optional, 0, source by which the User can authentificate himself against.
-
-        Returns: User
-            The newly created User.
-
         Throws:
             AlreadyExistsException, if the User exists already
             Exception, if something else went wrong.
         """
-        result = self.requests_post(
-            Gitea.ADMIN_CREATE_USER,
-            data={
-                "source_id": sourceId,
-                "login_name": userName,
-                "username": userName,
-                "email": email,
-                "password": password,
-                "send_notify": sendNotify,
-                "must_change_password": change_pw,
-            },
-        )
+        result = self.requests_post( Gitea.ADMIN_CREATE_USER, data={"source_id": sourceId, "login_name": userName,
+                "username": userName, "email": email, "password": password, "send_notify": sendNotify,
+                "must_change_password": change_pw,})
         if "id" in result:
-            logging.info(
-                "Successfully created User %s <%s> (id %s)"
-                % (result["login"], result["email"], result["id"])
-            )
+            logging.info("Successfully created User %s <%s> (id %s)"% (result["login"], result["email"], result["id"]))
         else:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
