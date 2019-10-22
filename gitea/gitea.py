@@ -88,7 +88,7 @@ class User(GiteaApiObject):
     @classmethod
     def request(cls, gitea, name) -> GiteaApiObject:
         api_object = cls._request(gitea, {"name": name})
-        #api_object.update_mail()
+        api_object.unmask_email()
         return api_object
 
     patchable_fields = {"active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
@@ -97,7 +97,7 @@ class User(GiteaApiObject):
 
     def commit(self):
         values = self.get_dirty_fields()
-        args = {"name": self.name, "email": self.email}
+        args = {"name": self.username, "email": self.email}
         self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
         self.dirty_fields = {}
 
@@ -106,10 +106,11 @@ class User(GiteaApiObject):
         results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
         return [Repository.parse_request(self.gitea, result) for result in results]
 
-    def update_mail(self):
+    def unmask_email(self):
         """ Request email adress with "sudo" set, so that admin accounts can access hidden email adresses. """
         prev = self._email
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
+        # report if the adress changed by this
         for mail in result:
             if mail["primary"]:
                 self._email = mail["email"]
@@ -333,6 +334,7 @@ class Gitea:
     """ Object to establish a session with Gitea. """
 
     ADMIN_CREATE_USER = """/admin/users"""
+    GET_USERS_ADMIN = """/admin/users"""
     ADMIN_REPO_CREATE = """/admin/users/%s/repos"""  # <ownername>
     GITEA_VERSION = """/version"""
     GET_USER = """/user"""
@@ -360,8 +362,11 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
-    def requests_get(self, endpoint, params={}):
-        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
+    def requests_get(self, endpoint, params={}, requests = None):
+        if not requests:
+            request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
+        else:
+            request = requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
         if request.status_code not in [200, 201]:
             message = "Received status code: %s (%s)" % (request.status_code, request.url)
             logging.error(message)
@@ -423,30 +428,11 @@ class Gitea:
         return self.parse_result(request)
 
     def requests_patch(self, endpoint, data):
-        """ Patch data to API-endpoint.
-
-        Args:
-            endpoint (str): endpoint of API to send data to
-            data (dict): Data to patch.
-
-        Returns: (dict)
-            Parsed JSON-answer from the API. Usually it is empty.
-
-        Throws:
-            Exception, if status code not ok.
-        """
-        request = self.requests.patch(
-            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
-        )
+        request = self.requests.patch(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
         if request.status_code not in [200, 201]:
-            logging.error(
-                "Received status code: %s (%s) %s"
-                % (request.status_code, request.url, data)
-            )
-            raise Exception(
-                "Received status code: %s (%s) %s"
-                % (request.status_code, request.url, request.text)
-            )
+            error_message = "Received status code: %s (%s) %s"% (request.status_code, request.url, data)
+            logging.error(error_message)
+            raise Exception(error_message)
         return self.parse_result(request)
 
     def get_users_search(self):
@@ -586,6 +572,17 @@ class Gitea:
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
 
+    def get_users(self):
+        results = self.requests_get(Gitea.GET_USERS_ADMIN)
+        return [User.parse_request(self,result) for result in results]
+
+    def get_user_by_email(self, email: str) -> User:
+        users = self.get_users()
+        for user in users:
+            if user.email == email:
+                return user
+        return None
+
     def create_user(
         self,
         userName: str,
@@ -633,7 +630,7 @@ class Gitea:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
         user = User.parse_request(self, result)
-        user.update_mail()
+        user.unmask_email()
         return user
 
     def create_repo(
