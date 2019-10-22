@@ -117,7 +117,7 @@ class User(GiteaApiObject):
             if mail["primary"]:
                 self._email = mail["email"]
                 break
-        logging.info("User %s updated Mail: <%s> to <%s>" % (self.login, prev, self.email))
+        logging.info("User %s unmasked e-mail: <%s> to <%s>" % (self.login, prev, self.email))
 
     def delete(self):
         """ Deletes this User. Also deletes all Repositories he owns."""
