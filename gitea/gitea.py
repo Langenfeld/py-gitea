@@ -489,22 +489,10 @@ class Gitea:
         path = "/orgs/" + orgname + "/public_members/" + username
         return self.requests_get(path)
 
-    def post_org_repos(
-        self, name, description, private, auto_init, gitignores, license, readme, org
-    ):
+    def post_org_repos(self, name, description, private, auto_init, gitignores, license, readme, org):
         path = "/org/" + org + "/repos"
-        return self.requests_post(
-            path,
-            data={
-                "name": name,
-                "description": description,
-                "private": private,
-                "auto_init": auto_init,
-                "gitignores": gitignores,
-                "license": license,
-                "readme": readme,
-            },
-        )
+        return self.requests_post(path, data={"name": name, "description": description, "private": private,
+                "auto_init": auto_init, "gitignores": gitignores, "license": license, "readme": readme,})
 
     def delete_orgs_members(self, orgname, username):
         path = "/orgs/" + orgname + "/members/" + username
@@ -521,48 +509,15 @@ class Gitea:
         path = "/repos/" + username + "/" + reponame + "/hooks"
         return self.requests_get(path)
 
-    def post_repos_migrate(
-        self,
-        clone_addr,
-        auth_username,
-        auth_password,
-        uid,
-        repo_name,
-        mirror,
-        private,
-        description,
-    ):
+    def post_repos_migrate(self, clone_addr, auth_username, auth_password, uid, repo_name, mirror, private, description,):
         path = "/repos/migrate"
-        return self.requests_post(
-            path,
-            data={
-                "clone_addr": clone_addr,
-                "auth_username": auth_username,
-                "auth_password": auth_password,
-                "uid": uid,
-                "repo_name": repo_name,
-                "mirror": mirror,
-                "private": private,
-                "description": description,
-            },
-        )
+        return self.requests_post(path, data={ "clone_addr": clone_addr, "auth_username": auth_username, "auth_password": auth_password,
+                "uid": uid, "repo_name": repo_name, "mirror": mirror, "private": private, "description": description})
 
-    def post_user_repos(
-        self, name, description, private, auto_init, gitignores, license, readme
-    ):
+    def post_user_repos(self, name, description, private, auto_init, gitignores, license, readme):
         path = "/user/repos"
-        return self.requests_post(
-            path,
-            data={
-                "name": name,
-                "description": description,
-                "private": private,
-                "auto_init": auto_init,
-                "gitignores": gitignores,
-                "license": license,
-                "readme": readme,
-            },
-        )
+        return self.requests_post( path, data={ "name": name, "description": description, "private": private, "auto_init": auto_init,
+                "gitignores": gitignores, "license": license, "readme": readme})
 
     # # #
 
@@ -603,32 +558,9 @@ class Gitea:
         user.unmask_email()
         return user
 
-    def create_repo(
-        self,
-        repoOwner,
-        repoName: str,
-        description: str = "",
-        private: bool = False,
-        autoInit=True,
-        gitignores=None,
-        license=None,
-        readme="Default",
-    ):
+    def create_repo( self, repoOwner, repoName: str, description: str = "", private: bool = False, autoInit=True,
+        gitignores=None, license=None, readme="Default",):
         """ Create a Repository.
-
-        Args:
-            repoOwner (User/Organization): The owner of this Repository.
-            repoName (str): The name of this Repository.
-            description (str): Optional, None, short description of this Repository.
-            private (bool): Optional, False, if this Repository should be private.
-            autoInit (bool): Optional, True, if this Repository should auto-initialize.
-            gitignores ([str]): Optional, None, list of gitignores to add.
-            license (str): Optional, None, what sort of License to add.
-            readme (str): Optional, 'Default', which Readme to initialize with.
-
-        Returns: Repository
-            The newly created Repository
-
         Throws:
             AlreadyExistsException, if Repository exists already.
             Exception, if something else went wrong.
@@ -638,17 +570,8 @@ class Gitea:
         # organizations
         assert isinstance(repoOwner, User) or isinstance(repoOwner, Organization)
         result = self.requests_post(
-            Gitea.ADMIN_REPO_CREATE % repoOwner.username,
-            data={
-                "name": repoName,
-                "description": description,
-                "private": private,
-                "auto_init": autoInit,
-                "gitignores": gitignores,
-                "license": license,
-                "readme": readme,
-            },
-        )
+            Gitea.ADMIN_REPO_CREATE % repoOwner.username, data={"name": repoName, "description": description,
+                "private": private, "auto_init": autoInit, "gitignores": gitignores, "license": license, "readme": readme})
         if "id" in result:
             logging.info("Successfully created Repository %s " % result["name"])
         else:
@@ -656,27 +579,11 @@ class Gitea:
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
         return Repository.parse_request(self, result)
 
-    def create_org(
-        self,
-        owner: User,
-        orgName: str,
-        description: str,
-        location="",
-        website="",
-        full_name="",
-    ):
-
+    def create_org(self, owner: User, orgName: str, description: str, location="", website="", full_name="",):
         assert isinstance(owner, User)
         result = self.requests_post(
-            Gitea.CREATE_ORG % owner.username,
-            data={
-                "username": orgName,
-                "description": description,
-                "location": location,
-                "website": website,
-                "full_name": full_name,
-            },
-        )
+            Gitea.CREATE_ORG % owner.username, data={"username": orgName, "description": description, "location": location,
+                "website": website, "full_name": full_name})
         if "id" in result:
             logging.info("Successfully created Organization %s" % result["username"])
         else:
@@ -687,22 +594,8 @@ class Gitea:
             )
         return Organization.parse_request(self, result)
 
-    def create_team(
-        self,
-        org: Organization,
-        name: str,
-        description: str = "",
-        permission: str = "read",
-        units=[
-            "repo.code",
-            "repo.issues",
-            "repo.ext_issues",
-            "repo.wiki",
-            "repo.pulls",
-            "repo.releases",
-            "repo.ext_wiki",
-        ],
-    ):
+    def create_team(self, org: Organization, name: str, description: str = "", permission: str = "read",
+            units=("repo.code", "repo.issues", "repo.ext_issues",   "repo.wiki", "repo.pulls", "repo.releases", "repo.ext_wiki")):
         """ Creates a Team.
 
         Args:
@@ -712,14 +605,8 @@ class Gitea:
             permission (str): Optional, 'read', What permissions the members
         """
         result = self.requests_post(
-            Gitea.CREATE_TEAM % org.username,
-            data={
-                "name": name,
-                "description": description,
-                "permission": permission,
-                "units": units,
-            },
-        )
+            Gitea.CREATE_TEAM % org.username, data={"name": name, "description": description, "permission": permission,
+                                                    "units": units})
         if "id" in result:
             logging.info("Successfully created Team %s" % result["name"])
         else:
