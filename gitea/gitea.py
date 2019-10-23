@@ -540,6 +540,13 @@ class Gitea:
                 return user
         return None
 
+    def get_user_by_name(self, username:str) -> User:
+        users = self.get_users()
+        for user in users:
+            if user.username == username:
+                return user
+        return None
+
     def create_user(self, userName: str, email: str, password: str, change_pw=True, sendNotify=True, sourceId=0):
         """ Create User.
         Throws:
