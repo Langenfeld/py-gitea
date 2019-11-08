@@ -266,7 +266,9 @@ class Issue(GiteaApiObject):
 
     def get_comments(self) -> List[GiteaApiObject]:
         results = self.gitea.requests_get(Issue.GET_COMMENTS%(self.owner.username, self.repo))
-        return [Comment.parse_request(self.gitea, result) for result in results]
+        allProjectComments = [Comment.parse_request(self.gitea, result) for result in results]
+        # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
+        return [comment for comment in allProjectComments if comment.issue_url.endswith("/" + str(self.number))]
 
 
 class Branch(GiteaApiObject):
