@@ -24,6 +24,8 @@ class BasicGiteaApiObject:
     fields_to_parsers = {}
 
     def commit(self):
+        """ TODO: evaluate if there is a generalizable version of this method
+        """
         raise NotImplemented()
 
     def get_dirty_fields(self):

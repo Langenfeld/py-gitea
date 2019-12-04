@@ -3,7 +3,7 @@ import os
 import pytest
 import uuid
 
-from .gitea import Gitea, User, Organization, Team, Repository
+from .gitea import Gitea, User, Organization, Team, Repository, Issue
 from .gitea import NotFoundException, AlreadyExistsException
 
 
@@ -34,7 +34,7 @@ def test_token_owner():
     assert user.is_admin, "Testuser is not Admin - Tests may fail"
 
 def test_gitea_version():
-    assert gitea.get_version() == "1.9.0", "Version changed. Updated?"
+    assert gitea.get_version() == "1.10.0", "Version changed. Updated?"
 
 def test_fail_get_non_existent_user():
     with pytest.raises(NotFoundException) as e:
@@ -50,9 +50,10 @@ def test_fail_get_non_existent_repo():
 
 def test_create_user():
     email = test_user + "@example.org"
-    user = gitea.create_user(test_user, email, "abcdefg123")
+    user = gitea.create_user(test_user, email, "abcdefg1.23AB")
     assert user.username == test_user
     assert user.login == test_user
+    assert email in user.emails
     assert user.email == email
     assert not user.is_admin
 
@@ -94,7 +95,6 @@ def test_edit_org_fields_and_commit():
     assert org2.website == "http:\\\\testurl.com"
 
 
-
 def test_create_repo_orgowned():
     org = Organization.request(gitea, test_org)
     repo = gitea.create_repo(org, test_repo, "descr")
@@ -104,11 +104,19 @@ def test_create_repo_orgowned():
     assert not repo.private
 
 def test_create_team():
-    org = Organization.request(gitea, "AlreadyPresentOrg")
+    org = Organization.request(gitea, test_org)
     team = gitea.create_team(org, test_team, "descr")
     assert team.name == test_team
     assert team.description == "descr"
     assert team.organization == org
+
+def test_create_issue():
+    org = Organization.request(gitea, test_org)
+    repo = Repository.request(gitea, org.username, test_repo)
+    issue = Issue.create_issue(gitea, repo, "TestIssue", "Body text with this issue")
+    assert issue.state == Issue.OPENED
+    assert issue.title == "TestIssue"
+    assert issue.body == "Body text with this issue"
 
 def test_delete_repo_userowned():
     org = User.request(gitea, test_user)
@@ -125,7 +133,7 @@ def test_delete_repo_orgowned():
         Repository.request(gitea, test_user, test_repo)
 
 def test_delete_team():
-    org = Organization.request(gitea, "AlreadyPresentOrg")
+    org = Organization.request(gitea, test_org)
     team = org.get_team(test_team)
     team.delete()
     with pytest.raises(NotFoundException) as e:

@@ -9,7 +9,8 @@ from .giteaApiObject import GiteaApiObject
 from .basicGiteaApiObject import BasicGiteaApiObject
 from .exceptions import *
 
-logging = logging.getLogger("gitea")
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
 
 class Organization(GiteaApiObject):
 
@@ -85,11 +86,16 @@ class User(GiteaApiObject):
 
     def __init__(self, gitea, id: int):
         super(User, self).__init__(gitea, id=id)
+        self._emails = []
+
+    @property
+    def emails(self):
+        self.__request_emails()
+        return self._emails
 
     @classmethod
     def request(cls, gitea, name) -> GiteaApiObject:
         api_object = cls._request(gitea, {"name": name})
-        api_object.unmask_email()
         return api_object
 
     patchable_fields = {"active", "admin", "allow_create_organization", "allow_git_hook", "allow_import_local",
@@ -108,20 +114,17 @@ class User(GiteaApiObject):
         results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
         return [Repository.parse_request(self.gitea, result) for result in results]
 
-    def unmask_email(self):
-        """ Request email adress with "sudo" set, so that admin accounts can access hidden email adresses. """
-        prev = self._email
-        result = self.gitea.requests_get(User.USER_MAIL % self.login)
+    def __request_emails(self):
+        result = self.gitea.requests_get(User.USER_MAIL%self.login)
         # report if the adress changed by this
         for mail in result:
+            self._emails.append(mail["email"])
             if mail["primary"]:
                 self._email = mail["email"]
-                break
-        logging.info("User %s unmasked e-mail: <%s> to <%s>" % (self.login, prev, self.email))
 
     def delete(self):
         """ Deletes this User. Also deletes all Repositories he owns."""
-        self.gitea.requests_delete(User.ADMIN_DELTE_USER % self.username)
+        self.gitea.requests_delete(User.ADMIN_DELETE_USER % self.username)
         self.deleted = True
 
     def get_heatmap(self) -> List[Tuple[datetime, int]]:
@@ -238,9 +241,10 @@ class Issue(GiteaApiObject):
     GET_API_OBJECT = """/repos/{owner}/{repo}/issues/{number}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
+    CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
 
-    closed = "closed"
-    open = "open"
+    OPENED = "closed"
+    CLOSED = "open"
 
     def __init__(self, gitea, id: int):
         super(Issue, self).__init__(gitea, id=id)
@@ -250,7 +254,7 @@ class Issue(GiteaApiObject):
         "user": lambda gitea, u: User.parse_request(gitea, u),
         "assignee": lambda gitea, u: User.parse_request(gitea, u),
         "assignees": lambda gitea, us: [User.parse_request(gitea, u) for u in us],
-        "state": lambda gitea, s: Issue.closed if s == "closed" else Issue.open,
+        "state": lambda gitea, s: Issue.CLOSED if s == "closed" else Issue.OPENED,
     }
 
     patchable_fields = {"assignee", "assignees", "body", "due_date", "milestone", "state", "title"}
@@ -259,6 +263,13 @@ class Issue(GiteaApiObject):
     def request(cls, gitea, owner, repo, number):
         api_object = cls._request(gitea, {"owner":owner, "repo":repo, "number":number})
         return api_object
+
+    @classmethod
+    def create_issue(cls, gitea, repo: Repository, title: str, body: str =""):
+        args = {"owner": repo.owner.username, "repo": repo.name}
+        data = {"title": title, "body": body}
+        result = gitea.requests_post(Issue.CREATE_ISSUE.format(**args), data=data)
+        return Issue.parse_request(gitea, result)
 
     def get_time(self, user: User) -> int:
         results = self.gitea.requests_get(Issue.GET_TIME % (self.owner.username, self.repo, self.number))
@@ -564,7 +575,6 @@ class Gitea:
             logging.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
         user = User.parse_request(self, result)
-        user.unmask_email()
         return user
 
     def create_repo( self, repoOwner, repoName: str, description: str = "", private: bool = False, autoInit=True,
