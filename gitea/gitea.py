@@ -184,7 +184,7 @@ class Repository(GiteaApiObject):
 
     def get_issues_state(self, state) -> List[GiteaApiObject]:
         """Get issues of state Issue.open or Issue.closed of a repository."""
-        assert state in [Issue.open, Issue.closed]
+        assert state in [Issue.OPENED, Issue.CLOSED]
         index = 1
         issues = []
         while True:
@@ -587,7 +587,7 @@ class Gitea:
     def get_user_by_email(self, email: str) -> User:
         users = self.get_users()
         for user in users:
-            if user.email == email:
+            if user.email == email or email in user.emails:
                 return user
         return None
 

@@ -119,11 +119,17 @@ def test_create_issue():
     assert issue.body == "Body text with this issue"
 
 def test_delete_repo_userowned():
-    org = User.request(gitea, test_user)
-    repo = Repository.request(gitea, org.username, test_repo)
+    user = User.request(gitea, test_user)
+    repo = Repository.request(gitea, user.username, test_repo)
     repo.delete()
     with pytest.raises(NotFoundException) as e:
         Repository.request(gitea, test_user, test_repo)
+
+def test_secundary_email():
+    SECONDARYMAIL = "secondarytest@test.org" # set up with real email
+    sec_user = gitea.get_user_by_email(SECONDARYMAIL)
+    assert SECONDARYMAIL in sec_user.emails
+    assert sec_user.username == "test"
 
 def test_delete_repo_orgowned():
     org = Organization.request(gitea, test_org)
