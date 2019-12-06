@@ -109,6 +109,11 @@ class User(GiteaApiObject):
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
 
+    def get_accessible_repositories(self) -> List[GiteaApiObject]:
+        """ Get all Repositories owned by this User."""
+        results = self.gitea.requests_get("/user/repos")
+        return [Repository.parse_request(self.gitea, result) for result in results]
+
     def get_repositories(self) -> List[GiteaApiObject]:
         """ Get all Repositories owned by this User."""
         results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
@@ -457,6 +462,11 @@ class Gitea:
     def get_orgs_public_members_all(self, orgname):
         path = "/orgs/" + orgname + "/public_members"
         return self.requests_get(path)
+
+    def get_orgs(self):
+        path = "/admin/orgs"
+        results = self.requests_get(path)
+        return [Organization.parse_request(self, result) for result in results]
 
     def post_repos__forks(self, organization, repo, owner):
         path = "/repos/" + owner + "/" + repo + "/forks"
