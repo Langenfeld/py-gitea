@@ -18,6 +18,7 @@ class Organization(GiteaApiObject):
     ORG_TEAMS_REQUEST = """/orgs/%s/teams"""  # <org>
     ORG_TEAMS_CREATE = """/orgs/%s/teams"""  # <org>
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
+    ORG_IS_MEMBER = """/orgs/%s/members/%s"""  # <org>, <username>
     ORG_DELETE = """/orgs/%s"""  # <org>
     ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
 
@@ -54,6 +55,16 @@ class Organization(GiteaApiObject):
     def get_members(self) -> List[GiteaApiObject]:
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
         return [User.parse_request(self.gitea, result) for result in results]
+
+    def is_member(self, username) -> bool:
+        if isinstance(username, User):
+            username = username.username
+        try:
+            # returns 204 if its ok, 404 if its not
+            self.gitea.requests_get(Organization.ORG_IS_MEMBER % (self.username, username))
+            return True
+        except:
+            return False
 
     def remove_member(self, user: GiteaApiObject):
         path = "/orgs/" + self.username + "/members/" + user.username
@@ -136,6 +147,7 @@ class User(GiteaApiObject):
 
 
 class Repository(GiteaApiObject):
+    REPO_IS_COLLABORATOR = """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     GET_API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
@@ -196,6 +208,29 @@ class Repository(GiteaApiObject):
         results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
         time = sum(r["time"] for r in results)
         return time
+
+    def get_full_name(self) -> str:
+        return self.owner.username + '/' + self.name
+
+    def create_issue(self, title, assignees=[], description="", ) -> GiteaApiObject:
+        data = {
+            "assignees": assignees,
+            "body": description,
+            "closed": False,
+            "title": title
+        }
+        result = self.gitea.requests_post(Repository.REPO_ISSUES % (self.owner.username, self.name), data=data)
+        return Issue.parse_request(self.gitea, result)
+
+    def is_collaborator(self, username) -> bool:
+        if isinstance(username, User):
+            username = username.username
+        try:
+            # returns 204 if its ok, 404 if its not
+            self.gitea.requests_get(Repository.REPO_IS_COLLABORATOR % (self.owner.username, self.name, username))
+            return True
+        except:
+            return False
 
     def delete(self):
         self.gitea.requests_delete(Repository.REPO_DELETE % (self.owner.username, self.name))
@@ -356,7 +391,7 @@ class Gitea:
 
     def __init__(self, gitea_url: str, token_text: str, cached=False, log_level="INFO"):
         """ Initializing Gitea-instance."""
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.headers = {"Authorization": "token " + token_text, "Content-type": "application/json"}
         self.url = gitea_url
@@ -382,13 +417,14 @@ class Gitea:
             request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
         else:
             request = requests.get(self.__get_url(endpoint), headers=self.headers, params=params)
+        if request.status_code == 204:
+            return None
         if request.status_code not in [200, 201]:
             message = "Received status code: %s (%s)" % (request.status_code, request.url)
-            self.logger.error(message)
             if request.status_code in [404]:
-                raise NotFoundException()
+                raise NotFoundException(message)
             if request.status_code in [403]:
-                raise Exception("Unauthorized: %s - Check your permissions and try again!" % request.url)
+                raise Exception("Unauthorized: %s - Check your permissions and try again! (%s)" % request.url, message)
             raise Exception(message)
         return self.parse_result(request)
 
@@ -424,13 +460,10 @@ class Gitea:
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
         if request.status_code not in [200, 201]:
-            if (
-                    "already exists" in request.text
-                    or "e-mail already in use" in request.text
-            ):
+            if "already exists" in request.text or "e-mail already in use" in request.text:
                 self.logger.warning(request.text)
                 raise AlreadyExistsException()
-                self.logger.error("Received status code: %s (%s)" % (request.status_code, request.url))
+            self.logger.error("Received status code: %s (%s)" % (request.status_code, request.url))
             self.logger.error("With info: %s (%s)" % (data, self.headers))
             self.logger.error("Answer: %s" % request.text)
             raise Exception("Received status code: %s (%s), %s" % (request.status_code, request.url, request.text))
