@@ -185,21 +185,16 @@ class Repository(GiteaApiObject):
     def get_issues_state(self, state) -> List[GiteaApiObject]:
         """Get issues of state Issue.open or Issue.closed of a repository."""
         assert state in [Issue.OPENED, Issue.CLOSED]
-        index = 1
         issues = []
-        while True:
-            # q=&type=all&sort=&state=open&milestone=0&assignee=0
-            results = self.gitea.requests_get(Repository.REPO_ISSUES % (self.owner.username, self.name),
-                                              params={"page": index, "state": state})
-            if len(results) <= 0:
-                break
-            index += 1
-            for result in results:
-                issue = Issue.parse_request(self.gitea, result)
-                # again a hack because this infomation gets lost after the api call
-                setattr(issue, "repo", self.name)
-                setattr(issue, "owner", self.owner)
-                issues.append(issue)
+        # "page": -1 is returning _all_ issues instead of pages. Hopefully this is intended behaviour.
+        data = {"page": -1, "state": state}
+        results = self.gitea.requests_get(Repository.REPO_ISSUES % (self.owner.username, self.name), params=data)
+        for result in results:
+            issue = Issue.parse_request(self.gitea, result)
+            # adding data not contained in the issue answer
+            setattr(issue, "repo", self.name)
+            setattr(issue, "owner", self.owner)
+            issues.append(issue)
         return issues
 
     def get_user_time(self, username) -> float:
