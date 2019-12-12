@@ -419,7 +419,7 @@ class Gitea:
             if request.status_code in [404]:
                 raise NotFoundException(message)
             if request.status_code in [403]:
-                raise Exception("Unauthorized: %s - Check your permissions and try again! (%s)" % request.url, message)
+                raise Exception("Unauthorized: %s - Check your permissions and try again! (%s)" % (request.url, message))
             raise Exception(message)
         return self.parse_result(request)
 
