@@ -32,7 +32,7 @@ class BasicGiteaApiObject:
         return {name: getattr(self,name) for name in self.dirty_fields}
 
     @classmethod
-    def parse_request(cls, gitea, result):
+    def parse_response(cls, gitea, result):
         id = int(result["id"])
         #gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)

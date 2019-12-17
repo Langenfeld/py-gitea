@@ -18,7 +18,7 @@ class GiteaApiObject(BasicGiteaApiObject):
     @classmethod
     def _request(cls, gitea, args):
         result = cls._get_gitea_api_object(gitea, args)
-        api_object = cls.parse_request(gitea, result)
+        api_object = cls.parse_response(gitea, result)
         for key, value in args.items(): # hack: not all necessary request args in api result (e.g. repo name in issue)
             if not hasattr(api_object, key):
                 setattr(api_object, key, value)
