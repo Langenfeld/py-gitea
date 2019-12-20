@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence
 
@@ -155,6 +156,7 @@ class Repository(GiteaApiObject):
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_GET_COLLABORATOR = "/repos/{owner}/{repo}/collaborators"  # <owner>, <reponame>
+    REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
 
     def __init__(self, gitea, id: int):
         super(Repository, self).__init__(gitea, id=id)
@@ -182,6 +184,11 @@ class Repository(GiteaApiObject):
     def get_issues(self) -> List[GiteaApiObject]:
         """Get all Issues of this Repository (open and closed)"""
         return self.get_issues_state(Issue.open) + self.get_issues_state(Issue.closed)
+
+    def get_commits(self) -> List[GiteaApiObject]:
+        """Get all the Commits of this Repository."""
+        results = self.gitea.requests_get(Repository.REPO_COMMITS % (self.owner.username, self.name))
+        return [Commit.parse_response(self.gitea, result) for result in results]
 
     def get_issues_state(self, state) -> List[GiteaApiObject]:
         """Get issues of state Issue.open or Issue.closed of a repository."""
@@ -281,6 +288,31 @@ class Comment(BasicGiteaApiObject):
     }
 
     patchable_fields = {"body"}
+
+class Commit(GiteaApiObject):
+
+    def __init__(self, gitea, id: int):
+        super(Commit, self).__init__(gitea, id=id)
+
+    fields_to_parsers = {
+        "author": lambda gitea, u: User.parse_response(gitea, u)
+    }
+
+
+    @classmethod
+    def request(cls, gitea, owner, repo):
+        api_object = cls._request(gitea, {"owner": owner, "repo": repo})
+        return api_object
+
+    @classmethod
+    def parse_response(cls, gitea, result):
+        id = result["sha"]
+        #gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+        api_object = cls(gitea, id=id)
+        cls._initialize(gitea, api_object, result)
+        # HACK
+        api_object.__setattr__('id', uuid.uuid1().int>>64)
+        return api_object
 
 
 class Issue(GiteaApiObject):
