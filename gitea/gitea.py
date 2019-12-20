@@ -187,7 +187,12 @@ class Repository(GiteaApiObject):
 
     def get_commits(self) -> List[GiteaApiObject]:
         """Get all the Commits of this Repository."""
-        results = self.gitea.requests_get(Repository.REPO_COMMITS % (self.owner.username, self.name))
+        try:
+            results = self.gitea.requests_get(Repository.REPO_COMMITS % (self.owner.username, self.name))
+        except ConflictException as err:
+            logging.warning(err)
+            logging.warning('Repository %s/%s is Empty' % (self.owner.username, self.name))
+            results = []
         return [Commit.parse_response(self.gitea, result) for result in results]
 
     def get_issues_state(self, state) -> List[GiteaApiObject]:
@@ -469,6 +474,8 @@ class Gitea:
             if request.status_code in [403]:
                 raise Exception(
                     "Unauthorized: %s - Check your permissions and try again! (%s)" % (request.url, message))
+            if request.status_code in [409]:
+                raise ConflictException(message)
             raise Exception(message)
         return self.parse_result(request)
 

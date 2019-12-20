@@ -6,3 +6,6 @@ class NotFoundException(Exception):
 
 class ObjectIsInvalid(Exception):
     pass
+
+class ConflictException(Exception):
+    pass
