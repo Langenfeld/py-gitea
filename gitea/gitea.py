@@ -188,7 +188,7 @@ class Repository(GiteaApiObject):
     def get_commits(self) -> List[GiteaApiObject]:
         """Get all the Commits of this Repository."""
         try:
-            results = self.gitea.requests_get(Repository.REPO_COMMITS % (self.owner.username, self.name))
+            results = self.gitea.requests_get_commits(Repository.REPO_COMMITS % (self.owner.username, self.name))
         except ConflictException as err:
             logging.warning(err)
             logging.warning('Repository %s/%s is Empty' % (self.owner.username, self.name))
@@ -478,6 +478,29 @@ class Gitea:
                 raise ConflictException(message)
             raise Exception(message)
         return self.parse_result(request)
+
+    def requests_get_commits(self, endpoint, page=1, params={}, requests=None):
+        results = []
+        page_endpoint = endpoint + f"?page={page}"
+        if not requests:
+            request = self.requests.get(self.__get_url(page_endpoint), headers=self.headers, params=params)
+        else:
+            request = requests.get(self.__get_url(page_endpoint), headers=self.headers, params=params)
+        results += self.parse_result(request)
+        if request.headers.get('x-hasmore') == 'true':
+            page += 1
+            results += self.requests_get_commits(endpoint, page)
+        elif request.status_code not in [200, 201]:
+            message = "Received status code: %s (%s)" % (request.status_code, request.url)
+            if request.status_code in [404]:
+                raise NotFoundException(message)
+            if request.status_code in [403]:
+                raise Exception(
+                    "Unauthorized: %s - Check your permissions and try again! (%s)" % (request.url, message))
+            if request.status_code in [409]:
+                raise ConflictException(message)
+            raise Exception(message)
+        return results
 
     def requests_put(self, endpoint):
         request = self.requests.put(self.__get_url(endpoint), headers=self.headers)
