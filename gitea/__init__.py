@@ -10,4 +10,3 @@ from .gitea import (
     Issue,
     Milestone,
 )
-

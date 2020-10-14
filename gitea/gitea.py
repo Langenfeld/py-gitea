@@ -299,6 +299,7 @@ class Comment(BasicGiteaApiObject):
 
     patchable_fields = {"body"}
 
+
 class Commit(GiteaApiObject):
 
     def __init__(self, gitea, id: int):
@@ -308,7 +309,6 @@ class Commit(GiteaApiObject):
         "author": lambda gitea, u: User.parse_response(gitea, u)
     }
 
-
     @classmethod
     def request(cls, gitea, owner, repo):
         api_object = cls._request(gitea, {"owner": owner, "repo": repo})
@@ -317,11 +317,11 @@ class Commit(GiteaApiObject):
     @classmethod
     def parse_response(cls, gitea, result):
         id = result["sha"]
-        #gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+        # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
         cls._initialize(gitea, api_object, result)
         # HACK
-        api_object.__setattr__('id', uuid.uuid1().int>>64)
+        api_object.__setattr__('id', uuid.uuid1().int >> 64)
         return api_object
 
 
@@ -697,7 +697,7 @@ class Gitea:
         return user
 
     def create_repo(self, repoOwner, repoName: str, description: str = "", private: bool = False, autoInit=True,
-                    gitignores:str=None, license:str=None, readme:str="Default", issue_labels:str=None ):
+                    gitignores: str = None, license: str = None, readme: str = "Default", issue_labels: str = None):
         """ Create a Repository.
         Throws:
             AlreadyExistsException, if Repository exists already.

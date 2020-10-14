@@ -1,22 +1,21 @@
-import logging
-from .exceptions import  ObjectIsInvalid
+from .exceptions import ObjectIsInvalid
+
 
 class BasicGiteaApiObject:
-
     GET_API_OBJECT = "FORMAT/STINING/{argument}"
     PATCH_API_OBJECT = "FORMAT/STINING/{argument}"
 
     def __init__(self, gitea, id):
         self.__id = id
         self.gitea = gitea
-        self.deleted = False        # set if .delete was called, so that an exception is risen
+        self.deleted = False  # set if .delete was called, so that an exception is risen
         self.dirty_fields = set()
 
     def __eq__(self, other):
         return other.id == self.id if isinstance(other, type(self)) else False
 
     def __str__(self):
-        return "GiteaAPIObject (%s) id: %s"%(type(self),self.id)
+        return "GiteaAPIObject (%s) id: %s" % (type(self), self.id)
 
     def __hash__(self):
         return self.id
@@ -29,12 +28,12 @@ class BasicGiteaApiObject:
         raise NotImplemented()
 
     def get_dirty_fields(self):
-        return {name: getattr(self,name) for name in self.dirty_fields}
+        return {name: getattr(self, name) for name in self.dirty_fields}
 
     @classmethod
     def parse_response(cls, gitea, result):
         id = int(result["id"])
-        #gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+        # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
         cls._initialize(gitea, api_object, result)
         return api_object
@@ -60,15 +59,15 @@ class BasicGiteaApiObject:
                 prop = property(
                     (lambda name: lambda self: self.__get_var(name))(name))
             setattr(cls, name, prop)
-            setattr(api_object, "_"+name, value)
+            setattr(api_object, "_" + name, value)
 
-    def __set_var(self,name,i):
+    def __set_var(self, name, i):
         if self.deleted:
             raise ObjectIsInvalid()
         self.dirty_fields.add(name)
-        setattr(self,"_"+name,i)
+        setattr(self, "_" + name, i)
 
-    def __get_var(self,name):
+    def __get_var(self, name):
         if self.deleted:
             raise ObjectIsInvalid()
-        return getattr(self,"_"+name)
+        return getattr(self, "_" + name)
