@@ -697,7 +697,7 @@ class Gitea:
         return user
 
     def create_repo(self, repoOwner, repoName: str, description: str = "", private: bool = False, autoInit=True,
-                    gitignores=None, license=None, readme="Default", ):
+                    gitignores:str=None, license:str=None, readme:str="Default", issue_labels:str=None ):
         """ Create a Repository.
         Throws:
             AlreadyExistsException, if Repository exists already.
@@ -711,7 +711,7 @@ class Gitea:
             Gitea.ADMIN_REPO_CREATE % repoOwner.username, data={"name": repoName, "description": description,
                                                                 "private": private, "auto_init": autoInit,
                                                                 "gitignores": gitignores, "license": license,
-                                                                "readme": readme})
+                                                                "issue_labels": issue_labels, "readme": readme})
         if "id" in result:
             self.logger.info("Successfully created Repository %s " % result["name"])
         else:
