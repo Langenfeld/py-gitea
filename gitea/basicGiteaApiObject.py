@@ -32,7 +32,10 @@ class BasicGiteaApiObject:
 
     @classmethod
     def parse_response(cls, gitea, result):
-        id = int(result["id"])
+        if "id" in result:
+            id = int(result["id"])
+        else:
+            id = hash(result.items)
         # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
         cls._initialize(gitea, api_object, result)

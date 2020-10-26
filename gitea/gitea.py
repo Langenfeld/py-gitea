@@ -38,22 +38,29 @@ class Organization(GiteaApiObject):
         self.gitea.requests_patch(Organization.PATCH_API_OBJECT.format(**args), data=values)
         self.dirty_fields = {}
 
-    def get_repositories(self) -> List[GiteaApiObject]:
+    def get_repositories(self) -> List['Repository']:
         results = self.gitea.requests_get(Organization.ORG_REPOS_REQUEST % self.username)
         return [Repository.parse_response(self.gitea, result) for result in results]
 
-    def get_teams(self) -> List[GiteaApiObject]:
+    def get_repository(self, name) -> 'Repository':
+        repos = self.get_repositories()
+        for repo in repos:
+            if repo.name == name:
+                return repo
+        raise NotFoundException("Repository %s not existent in organization." % name)
+
+    def get_teams(self) -> List['Team']:
         results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.username)
         return [Team.parse_response(self.gitea, result) for result in results]
 
-    def get_team(self, name):
+    def get_team(self, name) -> 'Team':
         teams = self.get_teams()
         for team in teams:
             if team.name == name:
                 return team
         raise NotFoundException("Team not existent in organization.")
 
-    def get_members(self) -> List[GiteaApiObject]:
+    def get_members(self) -> List['User']:
         results = self.gitea.requests_get(Organization.ORG_GET_MEMBERS % self.username)
         return [User.parse_response(self.gitea, result) for result in results]
 
@@ -147,6 +154,17 @@ class User(GiteaApiObject):
         return results
 
 
+class Branch(GiteaApiObject):
+    GET_API_OBJECT = """/repos/%s/%s/branches/%s"""  # <owner>, <repo>, <ref>
+
+    def __init__(self, gitea, id: int):
+        super(Branch, self).__init__(gitea, id=id)
+
+    @classmethod
+    def request(cls, gitea, owner, repo, ref):
+        return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
+
+
 class Repository(GiteaApiObject):
     REPO_IS_COLLABORATOR = """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     GET_API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
@@ -182,11 +200,21 @@ class Repository(GiteaApiObject):
         results = self.gitea.requests_get(Repository.REPO_BRANCHES % (self.owner.username, self.name))
         return [Branch.parse_response(self.gitea, result) for result in results]
 
-    def get_issues(self) -> List[GiteaApiObject]:
+    def add_branch(self, create_from: Branch, newname: str) -> 'Commit':
+        """Add a branch to the repository"""
+        # Note: will only work with gitea 1.13 or higher!
+        data = {
+            "new_branch_name": newname,
+            "old_branch_name": create_from.name
+        }
+        result = self.gitea.requests_post(Repository.REPO_BRANCHES % (self.owner.username, self.name), data=data)
+        return Commit.parse_response(self.gitea, result)
+
+    def get_issues(self) -> List['Issue']:
         """Get all Issues of this Repository (open and closed)"""
         return self.get_issues_state(Issue.open) + self.get_issues_state(Issue.closed)
 
-    def get_commits(self) -> List[GiteaApiObject]:
+    def get_commits(self) -> List['Commit']:
         """Get all the Commits of this Repository."""
         try:
             results = self.gitea.requests_get_commits(Repository.REPO_COMMITS % (self.owner.username, self.name))
@@ -196,7 +224,7 @@ class Repository(GiteaApiObject):
             results = []
         return [Commit.parse_response(self.gitea, result) for result in results]
 
-    def get_issues_state(self, state) -> List[GiteaApiObject]:
+    def get_issues_state(self, state) -> List['Issue']:
         """Get issues of state Issue.open or Issue.closed of a repository."""
         assert state in [Issue.OPENED, Issue.CLOSED]
         issues = []
@@ -368,17 +396,6 @@ class Issue(GiteaApiObject):
         allProjectComments = [Comment.parse_response(self.gitea, result) for result in results]
         # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
         return [comment for comment in allProjectComments if comment.issue_url.endswith("/" + str(self.number))]
-
-
-class Branch(GiteaApiObject):
-    GET_API_OBJECT = """/repos/%s/%s/branches/%s"""  # <owner>, <repo>, <ref>
-
-    def __init__(self, gitea, id: int):
-        super(Branch, self).__init__(gitea, id=id)
-
-    @classmethod
-    def request(cls, gitea, owner, repo, ref):
-        return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
 
 class Team(GiteaApiObject):

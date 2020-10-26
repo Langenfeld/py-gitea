@@ -111,6 +111,21 @@ def test_create_repo_orgowned(instance):
     assert repo.name == test_repo
     assert not repo.private
 
+def test_list_branches(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    branches = repo.get_branches()
+    assert len(branches) > 0
+    master = [b for b in branches if b.name == "master"]
+    assert len(master) > 0
+
+def test_create_branch(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    branches = repo.get_branches()
+    master = [b for b in branches if b.name == "master"]
+    assert len(master) > 0
+    repo.add_branch(master[0], "test123")
 
 def test_create_team(instance):
     org = Organization.request(instance, test_org)
