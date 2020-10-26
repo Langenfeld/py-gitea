@@ -561,10 +561,6 @@ class Gitea:
         path = "/users/search"
         return self.requests_get(path)
 
-    def delete_repos(self, username, reponame):
-        path = "/repos/" + username + "/" + reponame
-        return self.requests.delete(path)
-
     def get_orgs_public_members_all(self, orgname):
         path = "/orgs/" + orgname + "/public_members"
         return self.requests_get(path)
