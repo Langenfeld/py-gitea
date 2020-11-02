@@ -878,27 +878,30 @@ class Gitea:
 
     def create_user(
         self,
-        userName: str,
+        user_name: str,
         email: str,
         password: str,
+        login_name: str = None,
         change_pw=True,
-        sendNotify=True,
-        sourceId=0,
+        send_notify=True,
+        source_id=0,
     ):
         """ Create User.
         Throws:
             AlreadyExistsException, if the User exists already
             Exception, if something else went wrong.
         """
+        if not login_name:
+            login_name = user_name
         result = self.requests_post(
             Gitea.ADMIN_CREATE_USER,
             data={
-                "source_id": sourceId,
-                "login_name": userName,
-                "username": userName,
+                "source_id": source_id,
+                "login_name": login_name,
+                "username": user_name,
                 "email": email,
                 "password": password,
-                "send_notify": sendNotify,
+                "send_notify": send_notify,
                 "must_change_password": change_pw,
             },
         )
