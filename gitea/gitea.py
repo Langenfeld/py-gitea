@@ -13,6 +13,8 @@ from .giteaApiObject import GiteaApiObject
 
 
 class Organization(GiteaApiObject):
+    """see https://try.gitea.io/api/swagger#/organization/orgGetAll"""
+
     GET_API_OBJECT = """/orgs/{name}"""  # <org>
     PATCH_API_OBJECT = """/orgs/{name}"""  # <org>
     ORG_REPOS_REQUEST = """/orgs/%s/repos"""  # <org>
@@ -197,8 +199,8 @@ class Branch(GiteaApiObject):
 
 class Repository(GiteaApiObject):
     REPO_IS_COLLABORATOR = (
-        """/repos/%s/%s/collaborators/%s"""
-    )  # <owner>, <reponame>, <username>
+        """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
+    )
     GET_API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
@@ -362,8 +364,8 @@ class Repository(GiteaApiObject):
 
 class Milestone(GiteaApiObject):
     GET_API_OBJECT = (
-        """/repos/{owner}/{repo}/milestones/{number}"""
-    )  # <owner, repo, id>
+        """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo, id>
+    )
 
     def __init__(self, gitea, id: int):
         super(Milestone, self).__init__(gitea, id=id)
