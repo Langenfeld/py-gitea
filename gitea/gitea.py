@@ -527,10 +527,8 @@ class Team(GiteaApiObject):
     def add_user(self, user: User):
         self.gitea.requests_put(Team.ADD_USER % (self.id, user.login))
 
-    def add_repo(self, repo: Repository):
-        self.gitea.requests_put(
-            Team.ADD_REPO % (self.id, self.organization.username, repo.name)
-        )
+    def add_repo(self, org: Organization, repo: Repository):
+        self.gitea.requests_put(Team.ADD_REPO % (self.id, org, repo.name))
 
     def get_members(self):
         """ Get all users assigned to the team. """
@@ -551,7 +549,10 @@ class Util:
     @staticmethod
     def convert_time(time: str) -> datetime:
         """ Parsing of strange Gitea time format ("%Y-%m-%dT%H:%M:%S:%z" but with ":" in time zone notation)"""
-        return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
+        try:
+            return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
+        except ValueError:
+            return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S")
 
 
 class Gitea:
