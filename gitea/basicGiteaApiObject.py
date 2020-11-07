@@ -63,6 +63,15 @@ class BasicGiteaApiObject:
                     (lambda name: lambda self: self.__get_var(name))(name))
             setattr(cls, name, prop)
             setattr(api_object, "_" + name, value)
+        # add all patchable fields to be watched if changed
+        for name in cls.patchable_fields:
+            if not hasattr(api_object,name):
+                prop = property(
+                    (lambda name: lambda self: self.__get_var(name))(name),
+                    (lambda name: lambda self, v: self.__set_var(name, v))(name))
+                setattr(cls, name, prop)
+                setattr(api_object, "_" + name, None)
+
 
     def __set_var(self, name, i):
         if self.deleted:

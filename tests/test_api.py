@@ -61,6 +61,15 @@ def test_create_user(instance):
     assert user.email == email
     assert not user.is_admin
 
+def test_change_user(instance):
+    user = instance.get_user_by_name(test_user)
+    user.website = "other_testname"
+    user.full_name = "other_description"
+    user.commit()
+    del(user)
+    user = instance.get_user_by_name(test_user)
+    assert user.full_name == "other_description"
+
 
 def test_create_org(instance):
     user = instance.get_user()

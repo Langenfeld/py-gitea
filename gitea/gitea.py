@@ -692,8 +692,8 @@ class Gitea:
         )
         if request.status_code not in [200, 201]:
             if (
-                "already exists" in request.text
-                or "e-mail already in use" in request.text
+                    "already exists" in request.text
+                    or "e-mail already in use" in request.text
             ):
                 self.logger.warning(request.text)
                 raise AlreadyExistsException()
@@ -777,7 +777,7 @@ class Gitea:
         return self.requests_get(path)
 
     def post_org_repos(
-        self, name, description, private, auto_init, gitignores, license, readme, org
+            self, name, description, private, auto_init, gitignores, license, readme, org
     ):
         path = "/org/" + org + "/repos"
         return self.requests_post(
@@ -809,15 +809,15 @@ class Gitea:
         return self.requests_get(path)
 
     def post_repos_migrate(
-        self,
-        clone_addr,
-        auth_username,
-        auth_password,
-        uid,
-        repo_name,
-        mirror,
-        private,
-        description,
+            self,
+            clone_addr,
+            auth_username,
+            auth_password,
+            uid,
+            repo_name,
+            mirror,
+            private,
+            description,
     ):
         path = "/repos/migrate"
         return self.requests_post(
@@ -835,7 +835,7 @@ class Gitea:
         )
 
     def post_user_repos(
-        self, name, description, private, auto_init, gitignores, license, readme
+            self, name, description, private, auto_init, gitignores, license, readme
     ):
         path = "/user/repos"
         return self.requests_post(
@@ -880,14 +880,14 @@ class Gitea:
         return None
 
     def create_user(
-        self,
-        user_name: str,
-        email: str,
-        password: str,
-        login_name: str = None,
-        change_pw=True,
-        send_notify=True,
-        source_id=0,
+            self,
+            user_name: str,
+            email: str,
+            password: str,
+            login_name: str = None,
+            change_pw=True,
+            send_notify=True,
+            source_id=0,
     ):
         """ Create User.
         Throws:
@@ -923,16 +923,16 @@ class Gitea:
         return user
 
     def create_repo(
-        self,
-        repoOwner,
-        repoName: str,
-        description: str = "",
-        private: bool = False,
-        autoInit=True,
-        gitignores: str = None,
-        license: str = None,
-        readme: str = "Default",
-        issue_labels: str = None,
+            self,
+            repoOwner,
+            repoName: str,
+            description: str = "",
+            private: bool = False,
+            autoInit=True,
+            gitignores: str = None,
+            license: str = None,
+            readme: str = "Default",
+            issue_labels: str = None,
     ):
         """ Create a Repository.
         Throws:
@@ -964,13 +964,13 @@ class Gitea:
         return Repository.parse_response(self, result)
 
     def create_org(
-        self,
-        owner: User,
-        orgName: str,
-        description: str,
-        location="",
-        website="",
-        full_name="",
+            self,
+            owner: User,
+            orgName: str,
+            description: str,
+            location="",
+            website="",
+            full_name="",
     ):
         assert isinstance(owner, User)
         result = self.requests_post(
@@ -998,20 +998,20 @@ class Gitea:
         return Organization.parse_response(self, result)
 
     def create_team(
-        self,
-        org: Organization,
-        name: str,
-        description: str = "",
-        permission: str = "read",
-        units=(
-            "repo.code",
-            "repo.issues",
-            "repo.ext_issues",
-            "repo.wiki",
-            "repo.pulls",
-            "repo.releases",
-            "repo.ext_wiki",
-        ),
+            self,
+            org: Organization,
+            name: str,
+            description: str = "",
+            permission: str = "read",
+            units=(
+                    "repo.code",
+                    "repo.issues",
+                    "repo.ext_issues",
+                    "repo.wiki",
+                    "repo.pulls",
+                    "repo.releases",
+                    "repo.ext_wiki",
+            ),
     ):
         """ Creates a Team.
 
