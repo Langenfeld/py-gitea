@@ -896,23 +896,26 @@ class Gitea:
         """
         if not login_name:
             login_name = user_name
-        result = self.requests_post(
-            Gitea.ADMIN_CREATE_USER,
-            data={
-                "source_id": source_id,
-                "login_name": login_name,
-                "username": user_name,
-                "email": email,
-                "password": password,
-                "send_notify": send_notify,
-                "must_change_password": change_pw,
-            },
-        )
+        request_data = {
+            "source_id": source_id,
+            "login_name": login_name,
+            "username": user_name,
+            "email": email,
+            "password": password,
+            "send_notify": send_notify,
+            "must_change_password": change_pw,
+        }
+
+        self.logger.debug("Gitea post payload: %s", request_data)
+        result = self.requests_post(Gitea.ADMIN_CREATE_USER, data=request_data)
         if "id" in result:
             self.logger.info(
-                "Successfully created User %s <%s> (id %s)"
-                % (result["login"], result["email"], result["id"])
+                "Successfully created User %s <%s> (id %s)",
+                result["login"],
+                result["email"],
+                result["id"],
             )
+            self.logger.debug("Gitea response: %s", result)
         else:
             self.logger.error(result["message"])
             raise Exception("User not created... (gitea: %s)" % result["message"])
