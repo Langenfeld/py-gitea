@@ -439,7 +439,6 @@ class Issue(GiteaApiObject):
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
     CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
-    DELETE_TIME = """/repos/{owner}/{repo}/issues/{index}/times/{id}"""
 
     OPENED = "closed"
     CLOSED = "open"
@@ -495,8 +494,13 @@ class Issue(GiteaApiObject):
         )
 
     def delete_time(self, time_id: str):
-        self.gitea.requests_delete(
-            Issue.DELETE_TIME % (self.owner.username, self.repo, self.number, time_id)
+        path = f"/repos/{self.owner.username}/{self.repo}/issues/{self.number}/times/{time_id}"
+        self.gitea.requests_delete(path)
+
+    def add_time(self, time: int, created: str = None, user_name: str = None):
+        path = f"/repos/{self.owner.username}/{self.repo}/issues/{self.number}/times"
+        self.gitea.requests_post(
+            path, data={"created": created, "time": int(time), "user_name": user_name},
         )
 
     def get_comments(self) -> List[GiteaApiObject]:
