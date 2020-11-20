@@ -324,6 +324,20 @@ class Repository(GiteaApiObject):
         )
         return Issue.parse_response(self.gitea, result)
 
+    def create_gitea_hook(self, hook_url: str, events: List[str]):
+        url = f"/repos/{self.owner.username}/{self.name}/hooks"
+        data = {
+            "type": "gitea",
+            "config": {"content_type": "json", "url": hook_url},
+            "events": events,
+            "active": True,
+        }
+        return self.gitea.requests_post(url, data=data)
+
+    def list_hooks(self):
+        url = f"/repos/{self.owner.username}/{self.name}/hooks"
+        return self.gitea.requests_get(url)
+
     def is_collaborator(self, username) -> bool:
         if isinstance(username, User):
             username = username.username
