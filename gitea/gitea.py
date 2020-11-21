@@ -338,6 +338,10 @@ class Repository(GiteaApiObject):
         url = f"/repos/{self.owner.username}/{self.name}/hooks"
         return self.gitea.requests_get(url)
 
+    def delete_hook(self, id: str):
+        url = f"/repos/{self.owner.username}/{self.name}/hooks/{id}"
+        self.gitea.requests_delete(url)
+
     def is_collaborator(self, username) -> bool:
         if isinstance(username, User):
             username = username.username
@@ -514,7 +518,7 @@ class Issue(GiteaApiObject):
     def add_time(self, time: int, created: str = None, user_name: str = None):
         path = f"/repos/{self.owner.username}/{self.repo}/issues/{self.number}/times"
         self.gitea.requests_post(
-            path, data={"created": created, "time": int(time), "user_name": user_name},
+            path, data={"created": created, "time": int(time), "user_name": user_name}
         )
 
     def get_comments(self) -> List[GiteaApiObject]:
