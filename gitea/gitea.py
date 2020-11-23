@@ -107,7 +107,6 @@ class Organization(GiteaApiObject):
 class User(GiteaApiObject):
     GET_API_OBJECT = """/users/{name}"""  # <org>
     USER_MAIL = """/user/emails?sudo=%s"""  # <name>
-    USER_REPOS_REQUEST = """/users/%s/repos"""  # <org>
     USER_PATCH = """/admin/users/%s"""  # <username>
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
     ADMIN_EDIT_USER = """/admin/users/{name}"""  # <username>
@@ -149,20 +148,22 @@ class User(GiteaApiObject):
         values = self.get_dirty_fields()
         values.update(
             {"email": self.email}
-        )  # this requrest must always contain the email for identifying users
+        )  # this request must always contain the email for identifying users
         args = {"name": self.username, "email": self.email}
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
 
-    def get_accessible_repositories(self) -> List[GiteaApiObject]:
+    def get_repositories(self) -> List["Repository"]:
         """ Get all Repositories owned by this User."""
-        results = self.gitea.requests_get("/user/repos")
+        url = f"/users/{self.username}/repos"
+        results = self.gitea.requests_get(url)
         return [Repository.parse_response(self.gitea, result) for result in results]
 
-    def get_repositories(self) -> List[GiteaApiObject]:
-        """ Get all Repositories owned by this User."""
-        results = self.gitea.requests_get(User.USER_REPOS_REQUEST % self.username)
-        return [Repository.parse_response(self.gitea, result) for result in results]
+    def get_repositories(self) -> List[Organization]:
+        """ Get all Organizations this user is a member of."""
+        url = f"/users/{self.username}/orgs"
+        results = self.gitea.requests_get(url)
+        return [Organization.parse_response(self.gitea, result) for result in results]
 
     def __request_emails(self):
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
@@ -208,7 +209,6 @@ class Repository(GiteaApiObject):
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
-    REPO_GET_COLLABORATOR = "/repos/{owner}/{repo}/collaborators"  # <owner>, <reponame>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
 
     def __init__(self, gitea, id: int):
@@ -356,11 +356,8 @@ class Repository(GiteaApiObject):
             return False
 
     def get_users_with_access(self) -> Sequence[User]:
-        response = self.gitea.requests_get(
-            Repository.REPO_GET_COLLABORATOR.format(
-                owner=self.owner.username, repo=self.name
-            )
-        )
+        url = f"/repos/{self.owner.username}/{self.name}/collaborators"
+        response = self.gitea.requests_get(url)
         collabs = [User.parse_response(self.gitea, user) for user in response]
         if isinstance(self.owner, User):
             return collabs + [self.owner]
@@ -372,6 +369,10 @@ class Repository(GiteaApiObject):
                 if self.name in [n.name for n in team_repos]:
                     collabs += team.get_members()
             return collabs
+
+    def remove_collaborator(self, user_name: str):
+        url = f"/repos/{self.owner.username}/{self.name}/collaborators/{user_name}"
+        self.gitea.requests_delete(url)
 
     def delete(self):
         self.gitea.requests_delete(
@@ -576,6 +577,10 @@ class Team(GiteaApiObject):
     def delete(self):
         self.gitea.requests_delete(Team.TEAM_DELETE % self.id)
         self.deleted = True
+
+    def remove_team_member(self, user_name: str):
+        url = f"/teams/{self.id}/members/{user_name}"
+        self.gitea.requests_delete(url)
 
 
 class Util:
@@ -789,6 +794,11 @@ class Gitea:
         path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests_get(path)
 
+    def get_accessible_repositories(self) -> List[GiteaApiObject]:
+        """ Get all Repositories accessible by the logged in User."""
+        results = self.gitea.requests_get("/user/repos")
+        return [Repository.parse_response(self.gitea, result) for result in results]
+
     def get_users_following(self, username):
         path = "/users/" + username + "/following"
         return self.requests_get(path)
@@ -894,7 +904,7 @@ class Gitea:
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
 
-    def get_users(self):
+    def get_users(self) -> List[User]:
         results = self.requests_get(Gitea.GET_USERS_ADMIN)
         return [User.parse_response(self, result) for result in results]
 
