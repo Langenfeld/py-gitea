@@ -85,7 +85,7 @@ class Organization(GiteaApiObject):
             return False
 
     def remove_member(self, user: GiteaApiObject):
-        path = "/orgs/" + self.username + "/members/" + user.username
+        path = f"/orgs/{self.username}/members/{user.username}"
         self.gitea.requests_delete(path)
 
     def delete(self):
