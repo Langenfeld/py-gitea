@@ -1,12 +1,12 @@
 # py-gitea
 
-A very simple API client for Gitea version 1.9.0.
+A very simple API client for Gitea version 1.13.x.
 
-This has been somewhat tested (and used!), so most things should work as expected.
+This has been somewhat tested (and used), so most things should work as expected.
 
-Note that not the full Swagger-API is accessible. The implemented part is
-focused on Organization/Team/Repository/User-creation, also putting users in
-Teams in Organizations and adding Repositories to Teams.
+Note that not the full Swagger-API is accessible. The whole implementation is focused 
+on making access and working with Organizations, Teams, Repositories and Users as pain
+free as possible.
 
 Originally forked from https://github.com/m301/py-gitea.
 
@@ -15,6 +15,8 @@ Originally forked from https://github.com/m301/py-gitea.
 First get a `gitea` object wrapping access and authentication (via an api token) for your gitea instance:
 
 ```python
+from gitea import *
+
 gitea = Gitea(URL, TOKEN)
 ```
 
@@ -66,6 +68,10 @@ for team in teams:
 		print(repo.name)
 ```
 
+
+## Installation
+
+Use ``pip install py-gitea`` to install.
 
 ## Tests
 
