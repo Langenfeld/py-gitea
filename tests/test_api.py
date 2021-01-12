@@ -4,7 +4,7 @@ import uuid
 from gitea import Gitea, User, Organization, Team, Repository, Issue
 from gitea import NotFoundException, AlreadyExistsException
 
-# put a ".token" file into your directory containg only the token for py-gitea
+# put a ".token" file into your directory containg only the token for gitea
 @pytest.fixture
 def instance(scope="module"):
     try: 

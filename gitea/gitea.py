@@ -327,7 +327,7 @@ class Repository(GiteaApiObject):
     def create_gitea_hook(self, hook_url: str, events: List[str]):
         url = f"/repos/{self.owner.username}/{self.name}/hooks"
         data = {
-            "type": "py-gitea",
+            "type": "gitea",
             "config": {"content_type": "json", "url": hook_url},
             "events": events,
             "active": True,
@@ -445,7 +445,7 @@ class Commit(GiteaApiObject):
     @classmethod
     def parse_response(cls, gitea, result):
         id = result["sha"]
-        # py-gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+        # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
         cls._initialize(gitea, api_object, result)
         # HACK
@@ -961,7 +961,7 @@ class Gitea:
             self.logger.debug("Gitea response: %s", result)
         else:
             self.logger.error(result["message"])
-            raise Exception("User not created... (py-gitea: %s)" % result["message"])
+            raise Exception("User not created... (gitea: %s)" % result["message"])
         user = User.parse_response(self, result)
         return user
 
@@ -1003,7 +1003,7 @@ class Gitea:
             self.logger.info("Successfully created Repository %s " % result["name"])
         else:
             self.logger.error(result["message"])
-            raise Exception("Repository not created... (py-gitea: %s)" % result["message"])
+            raise Exception("Repository not created... (gitea: %s)" % result["message"])
         return Repository.parse_response(self, result)
 
     def create_org(
@@ -1032,11 +1032,11 @@ class Gitea:
             )
         else:
             self.logger.error(
-                "Organization not created... (py-gitea: %s)" % result["message"]
+                "Organization not created... (gitea: %s)" % result["message"]
             )
             self.logger.error(result["message"])
             raise Exception(
-                "Organization not created... (py-gitea: %s)" % result["message"]
+                "Organization not created... (gitea: %s)" % result["message"]
             )
         return Organization.parse_response(self, result)
 
@@ -1076,11 +1076,11 @@ class Gitea:
         if "id" in result:
             self.logger.info("Successfully created Team %s" % result["name"])
         else:
-            self.logger.error("Team not created... (py-gitea: %s)" % result["message"])
+            self.logger.error("Team not created... (gitea: %s)" % result["message"])
             self.logger.error(result["message"])
-            raise Exception("Team not created... (py-gitea: %s)" % result["message"])
+            raise Exception("Team not created... (gitea: %s)" % result["message"])
         api_object = Team.parse_response(self, result)
         setattr(
             api_object, "_organization", org
-        )  # fixes strange behaviour of py-gitea not returning a valid organization here.
+        )  # fixes strange behaviour of gitea not returning a valid organization here.
         return api_object
