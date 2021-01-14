@@ -159,7 +159,7 @@ class User(GiteaApiObject):
         results = self.gitea.requests_get(url)
         return [Repository.parse_response(self.gitea, result) for result in results]
 
-    def get_repositories(self) -> List[Organization]:
+    def get_orgs(self) -> List[Organization]:
         """ Get all Organizations this user is a member of."""
         url = f"/users/{self.username}/orgs"
         results = self.gitea.requests_get(url)
