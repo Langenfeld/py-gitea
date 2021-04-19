@@ -138,7 +138,7 @@ def test_create_branch(instance):
     branches = repo.get_branches()
     master = [b for b in branches if b.name == "master"]
     assert len(master) > 0
-    repo.add_branch(master[0], "test123")
+    repo.add_branch(master[0], "test_branch")
 
 def test_create_team(instance):
     org = Organization.request(instance, test_org)

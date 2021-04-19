@@ -193,6 +193,10 @@ class Branch(GiteaApiObject):
     def __init__(self, gitea, id: int):
         super(Branch, self).__init__(gitea, id=id)
 
+    fields_to_parsers = {
+        "commit": lambda gitea, c: Commit.parse_response(gitea, c)
+    }
+
     @classmethod
     def request(cls, gitea, owner, repo, ref):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
@@ -243,7 +247,7 @@ class Repository(GiteaApiObject):
         "website",
     }
 
-    def get_branches(self) -> List[GiteaApiObject]:
+    def get_branches(self) -> List['Branch']:
         """Get all the Branches of this Repository."""
         results = self.gitea.requests_get(
             Repository.REPO_BRANCHES % (self.owner.username, self.name)
@@ -257,7 +261,7 @@ class Repository(GiteaApiObject):
         result = self.gitea.requests_post(
             Repository.REPO_BRANCHES % (self.owner.username, self.name), data=data
         )
-        return Commit.parse_response(self.gitea, result)
+        return Branch.parse_response(self.gitea, result)
 
     def get_issues(self) -> List["Issue"]:
         """Get all Issues of this Repository (open and closed)"""
@@ -444,12 +448,10 @@ class Commit(GiteaApiObject):
 
     @classmethod
     def parse_response(cls, gitea, result):
-        id = result["sha"]
+        id = result["id"] #``sha`` is now called ``id``
         # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
         api_object = cls(gitea, id=id)
         cls._initialize(gitea, api_object, result)
-        # HACK
-        api_object.__setattr__("id", uuid.uuid1().int >> 64)
         return api_object
 
 
