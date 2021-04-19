@@ -60,15 +60,19 @@ def test_create_user(instance):
     assert email in user.emails
     assert user.email == email
     assert not user.is_admin
+    assert type(user.id) is int
+    assert user.is_admin is False
 
 def test_change_user(instance):
     user = instance.get_user_by_name(test_user)
-    user.website = "other_testname"
-    user.full_name = "other_description"
+    new_website = "http://testwebsite.de"
+    user.website = new_website
+    new_fullname = "Other Test Full Name"
+    user.full_name = new_fullname
     user.commit()
     del(user)
     user = instance.get_user_by_name(test_user)
-    assert user.full_name == "other_description"
+    assert user.full_name == new_fullname
 
 
 def test_create_org(instance):

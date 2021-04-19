@@ -109,7 +109,7 @@ class User(GiteaApiObject):
     USER_MAIL = """/user/emails?sudo=%s"""  # <name>
     USER_PATCH = """/admin/users/%s"""  # <username>
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
-    ADMIN_EDIT_USER = """/admin/users/{name}"""  # <username>
+    ADMIN_EDIT_USER = """/admin/users/{username}"""  # <username>
     USER_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea, id: int):
@@ -147,9 +147,9 @@ class User(GiteaApiObject):
     def commit(self):
         values = self.get_dirty_fields()
         values.update(
-            {"email": self.email}
-        )  # this request must always contain the email for identifying users
-        args = {"name": self.username, "email": self.email}
+            {"source_id": self.source_id, "login_name": self.username}
+        )  # this request must always contain both, the user name and the _login source_ (e.g. ``None`` for local)
+        args = {"username": self.username}
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
 
