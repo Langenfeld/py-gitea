@@ -439,7 +439,10 @@ class Commit(GiteaApiObject):
     def __init__(self, gitea, id: int):
         super(Commit, self).__init__(gitea, id=id)
 
-    fields_to_parsers = {"author": lambda gitea, u: User.parse_response(gitea, u)}
+    fields_to_parsers = {
+        # NOTE: do not try to parse gitea-users from git-committers/authors, as
+        # they are not necessarily users of gitea as well
+    }
 
     @classmethod
     def request(cls, gitea, owner, repo):
