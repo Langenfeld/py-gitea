@@ -801,8 +801,8 @@ class Gitea:
 
     def get_accessible_repositories(self) -> List[GiteaApiObject]:
         """ Get all Repositories accessible by the logged in User."""
-        results = self.gitea.requests_get("/user/repos")
-        return [Repository.parse_response(self.gitea, result) for result in results]
+        results = self.requests_get("/user/repos")
+        return [Repository.parse_response(self, result) for result in results]
 
     def get_users_following(self, username):
         path = "/users/" + username + "/following"

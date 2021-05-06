@@ -7,7 +7,7 @@ from gitea import NotFoundException, AlreadyExistsException
 # put a ".token" file into your directory containg only the token for gitea
 @pytest.fixture
 def instance(scope="module"):
-    try: 
+    try:
         g = Gitea("http://localhost:3000", open(".token", "r").read().strip())
         print("Gitea Version: " + g.get_version())
         print("API-Token belongs to user: " + g.get_user().username)
@@ -200,3 +200,8 @@ def test_delete_user(instance):
     user.delete()
     with pytest.raises(NotFoundException) as e:
         User.request(instance, test_user)
+
+
+def test_get_accessible_repositories(instance):
+    repos = instance.get_accessible_repositories()
+    assert repos == []
