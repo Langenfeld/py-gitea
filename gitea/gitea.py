@@ -464,8 +464,8 @@ class Issue(GiteaApiObject):
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
     CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
 
-    OPENED = "closed"
-    CLOSED = "open"
+    OPENED = "open"
+    CLOSED = "closed"
 
     def __init__(self, gitea, id: int):
         super(Issue, self).__init__(gitea, id=id)
