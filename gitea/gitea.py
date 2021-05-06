@@ -799,7 +799,7 @@ class Gitea:
         path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests_get(path)
 
-    def get_accessible_repositories(self) -> List[GiteaApiObject]:
+    def get_accessible_repositories(self) -> List['Repository']:
         """ Get all Repositories accessible by the logged in User."""
         results = self.requests_get("/user/repos")
         return [Repository.parse_response(self, result) for result in results]
