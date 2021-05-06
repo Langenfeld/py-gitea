@@ -1,6 +1,6 @@
 # py-gitea
 
-A very simple API client for Gitea version 1.13.x.
+A very simple API client for Gitea 1.14.x
 
 This has been somewhat tested (and used), so most things should work as expected.
 
