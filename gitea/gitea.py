@@ -166,7 +166,6 @@ class User(GiteaApiObject):
         return [Organization.parse_response(self.gitea, result) for result in results]
 
     def get_teams(self) -> List['Team']:
-        """ Get all Organizations this user is a member of."""
         url = f"/user/teams"
         results = self.gitea.requests_get(url, sudo=self)
         return [Team.parse_response(self.gitea, result) for result in results]
@@ -642,15 +641,17 @@ class Gitea:
         return {}
 
     def requests_get(self, endpoint, params={}, requests=None, sudo=None):
+        combined_params = {}
+        combined_params.update(params)
         if sudo:
-            params["sudo"] = sudo.username
+            combined_params["sudo"] = sudo.username
         if not requests:
             request = self.requests.get(
-                self.__get_url(endpoint), headers=self.headers, params=params
+                self.__get_url(endpoint), headers=self.headers, params=combined_params
             )
         else:
             request = requests.get(
-                self.__get_url(endpoint), headers=self.headers, params=params
+                self.__get_url(endpoint), headers=self.headers, params=combined_params
             )
         if request.status_code == 204:
             return None
