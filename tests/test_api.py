@@ -54,7 +54,7 @@ def test_fail_get_non_existent_repo(instance):
 
 def test_create_user(instance):
     email = test_user + "@example.org"
-    user = instance.create_user(test_user, email, "abcdefg1.23AB")
+    user = instance.create_user(test_user, email, "abcdefg1.23AB", send_notify=False)
     assert user.username == test_user
     assert user.login == test_user
     assert email in user.emails
@@ -147,6 +147,13 @@ def test_create_team(instance):
     assert team.description == "descr"
     assert team.organization == org
 
+def test_user_teams(instance):
+    org = Organization.request(instance, test_org)
+    team = org.get_team(test_team)
+    user = instance.get_user_by_name(test_user)
+    team.add_user(user)
+    teams = user.get_teams()
+    assert team in teams
 
 def test_create_issue(instance):
     org = Organization.request(instance, test_org)

@@ -165,6 +165,12 @@ class User(GiteaApiObject):
         results = self.gitea.requests_get(url)
         return [Organization.parse_response(self.gitea, result) for result in results]
 
+    def get_teams(self) -> List['Team']:
+        """ Get all Organizations this user is a member of."""
+        url = f"/user/teams"
+        results = self.gitea.requests_get(url, sudo=self)
+        return [Team.parse_response(self.gitea, result) for result in results]
+
     def __request_emails(self):
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
         # report if the adress changed by this
@@ -635,7 +641,9 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
-    def requests_get(self, endpoint, params={}, requests=None):
+    def requests_get(self, endpoint, params={}, requests=None, sudo=None):
+        if sudo:
+            params["sudo"] = sudo.username
         if not requests:
             request = self.requests.get(
                 self.__get_url(endpoint), headers=self.headers, params=params
