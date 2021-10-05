@@ -170,6 +170,11 @@ class User(GiteaApiObject):
         results = self.gitea.requests_get(url, sudo=self)
         return [Team.parse_response(self.gitea, result) for result in results]
 
+    def get_accessible_repos(self) -> List['Repository']:
+        """ Get all Repositories accessible by the logged in User."""
+        results = self.gitea.requests_get("/user/repos", sudo=self)
+        return [Repository.parse_response(self, result) for result in results]
+
     def __request_emails(self):
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
         # report if the adress changed by this
@@ -807,11 +812,6 @@ class Gitea:
     def get_repos_subscription(self, username, reponame):
         path = "/repos/" + username + "/" + reponame + "/subscription"
         return self.requests_get(path)
-
-    def get_accessible_repositories(self) -> List['Repository']:
-        """ Get all Repositories accessible by the logged in User."""
-        results = self.requests_get("/user/repos")
-        return [Repository.parse_response(self, result) for result in results]
 
     def get_users_following(self, username):
         path = "/users/" + username + "/following"

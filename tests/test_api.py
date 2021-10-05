@@ -155,6 +155,11 @@ def test_user_teams(instance):
     teams = user.get_teams()
     assert team in teams
 
+def test_get_accessible_repositories(instance):
+    user = instance.get_user_by_name(test_user)
+    repos = user.get_accessible_repos()
+    assert len(repos) > 0
+
 def test_create_issue(instance):
     org = Organization.request(instance, test_org)
     repo = Repository.request(instance, org.username, test_repo)
@@ -202,13 +207,10 @@ def test_delete_org(instance):
         Organization.request(instance, test_org)
 
 
+
+
 def test_delete_user(instance):
     user = User.request(instance, test_user)
     user.delete()
     with pytest.raises(NotFoundException) as e:
         User.request(instance, test_user)
-
-
-def test_get_accessible_repositories(instance):
-    repos = instance.get_accessible_repositories()
-    assert repos == []
