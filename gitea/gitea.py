@@ -32,6 +32,13 @@ class Organization(GiteaApiObject):
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
 
+    @classmethod
+    def parse_response(cls, gitea, result):
+        api_object = super().parse_response(gitea, result)
+        # add "name" field to make this behave similar to users
+        Organization._add_readonly_property("name", result["username"], api_object)
+        return api_object
+
     patchable_fields = {"description", "full_name", "location", "visibility", "website"}
 
     def commit(self):

@@ -29,7 +29,7 @@ class BasicGiteaApiObject:
         return {name: getattr(self, name) for name in self.dirty_fields}
 
     @classmethod
-    def parse_response(cls, gitea, result):
+    def parse_response(cls, gitea, result) -> "BasicGiteaApiObject":
         if "id" in result:
             id = int(result["id"])
         else:
@@ -53,23 +53,30 @@ class BasicGiteaApiObject:
                 parse_func = cls.fields_to_parsers[name]
                 value = parse_func(gitea, value)
             if name in cls.patchable_fields:
-                prop = property(
-                    (lambda name: lambda self: self.__get_var(name))(name),
-                    (lambda name: lambda self, v: self.__set_var(name, v))(name))
+               cls._add_property(name, value, api_object)
             else:
-                prop = property(
-                    (lambda name: lambda self: self.__get_var(name))(name))
-            setattr(cls, name, prop)
-            setattr(api_object, "_" + name, value)
+                cls._add_readonly_property(name,value,api_object)
         # add all patchable fields to be watched if changed
         for name in cls.patchable_fields:
             if not hasattr(api_object,name):
-                prop = property(
-                    (lambda name: lambda self: self.__get_var(name))(name),
-                    (lambda name: lambda self, v: self.__set_var(name, v))(name))
-                setattr(cls, name, prop)
-                setattr(api_object, "_" + name, None)
+                cls._add_property(name, None, api_object)
 
+    @classmethod
+    def _add_property(cls, name, value, api_object):
+        if not hasattr(api_object, name):
+            prop = property(
+                (lambda name: lambda self: self.__get_var(name))(name),
+                (lambda name: lambda self, v: self.__set_var(name, v))(name))
+            setattr(cls, name, prop)
+            setattr(api_object, "_" + name, value)
+
+    @classmethod
+    def _add_readonly_property(cls, name, value, api_object):
+        if not hasattr(api_object, name):
+            prop = property(
+                (lambda name: lambda self: self.__get_var(name))(name))
+            setattr(cls, name, prop)
+            setattr(api_object, "_" + name, value)
 
     def __set_var(self, name, i):
         if self.deleted:

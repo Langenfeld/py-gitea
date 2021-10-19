@@ -169,6 +169,11 @@ def test_create_issue(instance):
     assert issue.title == "TestIssue"
     assert issue.body == "Body text with this issue"
 
+def test_team_get_org(instance):
+    org = Organization.request(instance, test_org)
+    user = instance.get_user_by_name(test_user)
+    teams = user.get_teams()
+    assert org.username == teams[0].organization.name
 
 def test_delete_repo_userowned(instance):
     user = User.request(instance, test_user)
@@ -176,7 +181,6 @@ def test_delete_repo_userowned(instance):
     repo.delete()
     with pytest.raises(NotFoundException) as e:
         Repository.request(instance, test_user, test_repo)
-
 
 def test_secundary_email(instance):
     SECONDARYMAIL = "secondarytest@test.org"  # set up with real email
