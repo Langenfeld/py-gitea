@@ -65,14 +65,15 @@ def test_create_user(instance):
 
 def test_change_user(instance):
     user = instance.get_user_by_name(test_user)
-    new_website = "http://testwebsite.de"
-    user.website = new_website
+    location = "a house"
+    user.location = location
     new_fullname = "Other Test Full Name"
     user.full_name = new_fullname
     user.commit()
     del(user)
     user = instance.get_user_by_name(test_user)
     assert user.full_name == new_fullname
+    assert user.location == location
 
 
 def test_create_org(instance):
@@ -205,8 +206,6 @@ def test_delete_org(instance):
     org.delete()
     with pytest.raises(NotFoundException) as e:
         Organization.request(instance, test_org)
-
-
 
 
 def test_delete_user(instance):

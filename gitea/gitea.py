@@ -140,15 +140,15 @@ class User(GiteaApiObject):
         "must_change_password",
         "password",
         "prohibit_login",
-        "source_id",
         "website",
     }
 
     def commit(self):
         values = self.get_dirty_fields()
         values.update(
-            {"source_id": self.source_id, "login_name": self.username}
-        )  # this request must always contain both, the user name and the _login source_ (e.g. ``None`` for local)
+            # api-doc says that the "source_id" is necessary; works without though
+            {"login_name": self.username}
+        )
         args = {"username": self.username}
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
