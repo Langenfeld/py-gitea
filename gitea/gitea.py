@@ -150,11 +150,17 @@ class User(GiteaApiObject):
         "website",
     }
 
-    def commit(self):
+    def commit(self, login_name: str, source_id: int = 0):
+        """
+        Unfortunately it is necessary to require the login name
+        as well as the login source (that is not supplied when getting a user) for
+        changing a user.
+        Usually source_id is 0 and the login_name is equal to the username.
+        """
         values = self.get_dirty_fields()
         values.update(
             # api-doc says that the "source_id" is necessary; works without though
-            {"login_name": self.username}
+            {"login_name": login_name, "source_id": source_id}
         )
         args = {"username": self.username}
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
