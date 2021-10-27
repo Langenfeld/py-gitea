@@ -50,9 +50,20 @@ class Organization(GiteaApiObject):
         self.dirty_fields = {}
 
     def get_repositories(self) -> List["Repository"]:
-        results = self.gitea.requests_get(
-            Organization.ORG_REPOS_REQUEST % self.username
-        )
+        current_page = 1
+        results = []
+        repo_id_list = []
+
+        # default per page limit is 30
+        while len(results) % 30 == 0:
+            url = f"/users/{self.username}/repos?page={current_page}"
+            tmp_result = self.gitea.requests_get(url)
+            current_page += 1
+            for repo in tmp_result:
+                repo_id = repo.get("id", 0)
+                if repo_id not in repo_id_list:
+                    results.append(repo)
+
         return [Repository.parse_response(self.gitea, result) for result in results]
 
     def get_repository(self, name) -> "Repository":
