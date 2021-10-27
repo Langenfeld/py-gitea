@@ -1,6 +1,5 @@
 import json
 import logging
-import uuid
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional
 
@@ -50,7 +49,7 @@ class Organization(GiteaApiObject):
         self.dirty_fields = {}
 
     def get_repositories(self) -> List["Repository"]:
-        results = self.gitea.requests_get(
+        results = self.gitea.requests_get_paginated(
             Organization.ORG_REPOS_REQUEST % self.username
         )
         return [Repository.parse_response(self.gitea, result) for result in results]
@@ -403,7 +402,7 @@ class Repository(GiteaApiObject):
 
     def delete(self):
         self.gitea.requests_delete(
-            Repository.REPO_DELETE % (self.owner.username, self.name)
+                Repository.REPO_DELETE % (self.owner.username, self.name)
         )
         self.deleted = True
 
@@ -657,6 +656,19 @@ class Gitea:
         if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
+
+    def requests_get_paginated(self, endpoint, params ={}, requests=None, sudo=None, page_key: str = "page"):
+        page = 1
+        combined_params = {}
+        combined_params.update(params)
+        aggregated_result = []
+        while True:
+            combined_params[page_key] = page
+            result = self.requests_get(endpoint, combined_params, requests, sudo)
+            aggregated_result.extend(result)
+            page += 1
+            if len(result) == 0:
+                return aggregated_result
 
     def requests_get(self, endpoint, params={}, requests=None, sudo=None):
         combined_params = {}

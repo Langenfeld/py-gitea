@@ -125,6 +125,16 @@ def test_create_repo_orgowned(instance):
     assert repo.name == test_repo
     assert not repo.private
 
+def test_list_repos(instance):
+    org = Organization.request(instance, test_org)
+    repos = org.get_repositories()
+    assert len(repos) > 0
+    # test a number of repository listings larger than the pagination number (default 30)
+    for i in range(1, 34):
+        instance.create_repo(org, test_repo + "_" + str(i), str(i))
+    repos = org.get_repositories()
+    assert len(repos) >= 33
+
 def test_list_branches(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
@@ -204,6 +214,13 @@ def test_delete_team(instance):
     with pytest.raises(NotFoundException) as e:
         team = org.get_team(test_team)
 
+def test_delete_teams(instance):
+    org = Organization.request(instance, test_org)
+    repos = org.get_repositories()
+    for repo in repos:
+        repo.delete()
+    repos = org.get_repositories()
+    assert len(repos) == 0
 
 def test_delete_org(instance):
     org = Organization.request(instance, test_org)
