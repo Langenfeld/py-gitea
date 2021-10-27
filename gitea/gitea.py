@@ -237,6 +237,7 @@ class Repository(GiteaApiObject):
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
+    PATCH_API_OBJECT = "/repos/%s/%s"  # <owner>, <reponame>
 
     def __init__(self, gitea, id: int):
         super(Repository, self).__init__(gitea, id=id)
@@ -406,7 +407,13 @@ class Repository(GiteaApiObject):
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
         self.deleted = True
-
+        
+    def commit(self):
+        values = self.get_dirty_fields()
+        self.gitea.requests_patch(
+            Repository.PATCH_API_OBJECT % (self.owner.username, self.name), data=values
+        )
+        self.dirty_fields = {}
 
 class Milestone(GiteaApiObject):
     GET_API_OBJECT = (
