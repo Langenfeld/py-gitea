@@ -780,7 +780,7 @@ class Gitea:
         request = self.requests.post(
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
-        if request.status_code not in [200, 201]:
+        if request.status_code not in [200, 201, 202]:
             if (
                 "already exists" in request.text
                 or "e-mail already in use" in request.text
