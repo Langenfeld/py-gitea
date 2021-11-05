@@ -216,6 +216,10 @@ def test_change_repo_ownership_user(instance):
     repo.transfer_ownership(user)
     assert repo_name not in [repo.name for repo in old_org.get_repositories()]
     assert repo_name in [repo.name for repo in user.get_repositories()]
+    for repo in user.get_repositories():
+        repo.transfer_ownership(old_org)
+        assert repo_name in [repo.name for repo in old_org.get_repositories()]
+        assert repo_name not in [repo.name for repo in user.get_repositories()]
 
 
 def test_delete_team(instance):
