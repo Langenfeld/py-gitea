@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional, Union
+from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
 
 import requests
 from httpcache import CachingHTTPAdapter
@@ -128,7 +128,7 @@ class User(GiteaApiObject):
         return self._emails
 
     @classmethod
-    def request(cls, gitea, name) -> GiteaApiObject:
+    def request(cls, gitea, name) -> "User":
         api_object = cls._request(gitea, {"name": name})
         return api_object
 
@@ -401,13 +401,14 @@ class Repository(GiteaApiObject):
         url = f"/repos/{self.owner.username}/{self.name}/collaborators/{user_name}"
         self.gitea.requests_delete(url)
 
-    def transfer_ownership(self, new_owner: Union["User","Organization"], new_teams: List["Team"]):
-        url = Repository.REPO_TRANSFER.format(owner = self.owner.username, repo = self.name)
-        new_team_ids = [team.id for team in new_teams if isinstance(new_owner,User) or team in new_owner.get_teams()]
-        self.gitea.requests_post(
-            url, data={"new_owner": new_owner.username, "team_ids": new_team_ids}
-        )
-        #TODO: make sure this instance is either updated or discarded
+    def transfer_ownership(self, new_owner: Union["User", "Organization"], new_teams: Set["Team"] = frozenset()):
+        url = Repository.REPO_TRANSFER.format(owner=self.owner.username, repo=self.name)
+        data = {"new_owner": new_owner.username}
+        if isinstance(new_owner, Organization):
+            new_team_ids = [team.id for team in new_teams if team in new_owner.get_teams()]
+            data["team_ids"] = new_team_ids
+        self.gitea.requests_post(url, data=data)
+        # TODO: make sure this instance is either updated or discarded
 
     def delete(self):
         self.gitea.requests_delete(

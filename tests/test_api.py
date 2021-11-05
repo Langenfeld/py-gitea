@@ -125,16 +125,6 @@ def test_create_repo_orgowned(instance):
     assert repo.name == test_repo
     assert not repo.private
 
-def test_list_repos(instance):
-    org = Organization.request(instance, test_org)
-    repos = org.get_repositories()
-    assert len(repos) > 0
-    # test a number of repository listings larger than the pagination number (default 30)
-    for i in range(1, 34):
-        instance.create_repo(org, test_repo + "_" + str(i), str(i))
-    repos = org.get_repositories()
-    assert len(repos) >= 33
-
 def test_list_branches(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
@@ -207,15 +197,25 @@ def test_delete_repo_orgowned(instance):
         Repository.request(instance, test_user, test_repo)
 
 
-def test_change_repo_ownership(instance):
+def test_change_repo_ownership_org(instance):
     old_org = Organization.request(instance, test_org)
     user = User.request(instance, test_user)
     new_org = instance.create_org(user,test_org+"_repomove", "Org for testing moving repositories")
     new_team = instance.create_team(new_org, test_team + "_repomove", "descr")
-    repo = instance.create_repo(old_org, test_repo+"_repomove", "descr")
-    repo.transfer_ownership(new_org, [new_team])
-    assert len(new_org.get_teams()) > 1
-    assert test_repo + "_repomove" in [team.name for team in new_org.get_repositories()]
+    repo_name = test_repo+"_repomove"
+    repo = instance.create_repo(old_org, repo_name , "descr")
+    repo.transfer_ownership(new_org, set([new_team]))
+    assert repo_name not in [repo.name for repo in old_org.get_repositories()]
+    assert repo_name in [repo.name for repo in new_org.get_repositories()]
+
+def test_change_repo_ownership_user(instance):
+    old_org = Organization.request(instance, test_org)
+    user = User.request(instance, test_user)
+    repo_name = test_repo+"_repomove"
+    repo = instance.create_repo(old_org, repo_name, "descr")
+    repo.transfer_ownership(user)
+    assert repo_name not in [repo.name for repo in old_org.get_repositories()]
+    assert repo_name in [repo.name for repo in user.get_repositories()]
 
 
 def test_delete_team(instance):
