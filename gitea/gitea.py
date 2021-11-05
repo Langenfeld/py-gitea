@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional
+from typing import List, Tuple, Dict, Sequence, Optional, Union
 
 import requests
 from httpcache import CachingHTTPAdapter
@@ -236,6 +236,7 @@ class Repository(GiteaApiObject):
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
+    REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
 
     def __init__(self, gitea, id: int):
         super(Repository, self).__init__(gitea, id=id)
@@ -400,12 +401,19 @@ class Repository(GiteaApiObject):
         url = f"/repos/{self.owner.username}/{self.name}/collaborators/{user_name}"
         self.gitea.requests_delete(url)
 
+    def transfer_ownership(self, new_owner: Union["User","Organization"], new_teams: List["Team"]):
+        url = Repository.REPO_TRANSFER.format(owner = self.owner.username, repo = self.name)
+        new_team_ids = [team.id for team in new_teams if isinstance(new_owner,User) or team in new_owner.get_teams()]
+        self.gitea.requests_post(
+            url, data={"new_owner": new_owner.username, "team_ids": new_team_ids}
+        )
+        #TODO: make sure this instance is either updated or discarded
+
     def delete(self):
         self.gitea.requests_delete(
                 Repository.REPO_DELETE % (self.owner.username, self.name)
         )
         self.deleted = True
-
 
 class Milestone(GiteaApiObject):
     GET_API_OBJECT = (

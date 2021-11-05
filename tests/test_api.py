@@ -207,6 +207,17 @@ def test_delete_repo_orgowned(instance):
         Repository.request(instance, test_user, test_repo)
 
 
+def test_change_repo_ownership(instance):
+    old_org = Organization.request(instance, test_org)
+    user = User.request(instance, test_user)
+    new_org = instance.create_org(user,test_org+"_repomove", "Org for testing moving repositories")
+    new_team = instance.create_team(new_org, test_team + "_repomove", "descr")
+    repo = instance.create_repo(old_org, test_repo+"_repomove", "descr")
+    repo.transfer_ownership(new_org, [new_team])
+    assert len(new_org.get_teams()) > 1
+    assert test_repo + "_repomove" in [team.name for team in new_org.get_repositories()]
+
+
 def test_delete_team(instance):
     org = Organization.request(instance, test_org)
     team = org.get_team(test_team)
