@@ -237,6 +237,7 @@ class Repository(GiteaApiObject):
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
+    REPO_CONTENTS = "/repos/{owner}/{repo}/contents"
 
     def __init__(self, gitea, id: int):
         super(Repository, self).__init__(gitea, id=id)
@@ -409,6 +410,17 @@ class Repository(GiteaApiObject):
             data["team_ids"] = new_team_ids
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
+
+    def get_git_content(self, ref :  str = "HEAD"):
+        """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
+        url = Repository.REPO_CONTENTS.format(owner=self.owner.username, repo=self.name)
+        data = {"ref": ref}
+        result = self.gitea.requests_get(url)
+        return result
+
+    def get_file_content(self):
+        """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
+        pass
 
     def delete(self):
         self.gitea.requests_delete(

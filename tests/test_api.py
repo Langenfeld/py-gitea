@@ -133,6 +133,12 @@ def test_list_branches(instance):
     master = [b for b in branches if b.name == "master"]
     assert len(master) > 0
 
+def test_list_files(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    content = repo.get_git_content()
+    assert True
+
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)

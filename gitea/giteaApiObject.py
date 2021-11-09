@@ -10,7 +10,7 @@ class GiteaApiObject(BasicGiteaApiObject):
 
     @classmethod
     def request(cls, gitea, id):
-        """Use for ginving a nice e.g. 'request(gita, orgname, repo, ticket)'.
+        """Use for giving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
         return cls._request(gitea, {"id": id})
 
