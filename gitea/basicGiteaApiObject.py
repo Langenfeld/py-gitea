@@ -14,7 +14,11 @@ class BasicGiteaApiObject:
         return "GiteaAPIObject (%s):" % (type(self))
 
     def __eq__(self, other):
-        """Compare only fields that are part of the gitea-data"""
+        """Compare only fields that are part of the gitea-data identity"""
+        raise MissiongEqualyImplementation()
+
+    def __hash__(self):
+        """Hash only fields that are part of the gitea-data identity"""
         raise MissiongEqualyImplementation()
 
 

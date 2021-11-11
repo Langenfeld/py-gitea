@@ -31,6 +31,9 @@ class Organization(GiteaApiObject):
         if not isinstance(other, Organization): return False
         return self.gitea == other.gitea and self.name == other.name
 
+    def __hash__(self):
+        return hash(self.gitea) ^ hash(self.name)
+
     @classmethod
     def request(cls, gitea, name):
         return cls._request(gitea, {"name": name})
@@ -133,6 +136,9 @@ class User(GiteaApiObject):
         if not isinstance(other, User): return False
         return self.gitea == other.gitea and self.id == other.id
 
+    def __hash__(self):
+        return hash(self.gitea) ^ hash(self.id)
+
     @property
     def emails(self):
         self.__request_emails()
@@ -228,7 +234,10 @@ class Branch(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Branch): return False
-        return self.gitea == other.gitea and self.repo == other.repo and self.name == other.name
+        return self.repo == other.repo and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.name)
 
     fields_to_parsers = {
         "commit": lambda gitea, c: Commit.parse_response(gitea, c)
@@ -259,7 +268,10 @@ class Repository(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Repository): return False
-        return self.gitea == other.gitea and self.owner == other.owner and self.name == other.name
+        return self.owner == other.owner and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.owner) ^ hash(self.name)
 
     fields_to_parsers = {
         # dont know how to tell apart user and org as owner except form email being empty.
@@ -457,7 +469,10 @@ class Milestone(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Milestone): return False
-        return self.gitea == other.gitea and self.repo == other.repo and self.id == other.id
+        return self.repo == other.repo and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.id)
 
     fields_to_parsers = {
         "closed_at": lambda gitea, t: Util.convert_time(t),
@@ -494,7 +509,10 @@ class Comment(BasicGiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Comment): return False
-        return self.gitea == other.gitea and self.repo == other.repo and self.id == other.id
+        return self.repo == other.repo and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.id)
 
     fields_to_parsers = {
         "user": lambda gitea, r: User.parse_response(gitea, r),
@@ -516,7 +534,10 @@ class Commit(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Commit): return False
-        return self.gitea == other.gitea and self.repo == other.repo and self.ref == other.ref
+        return self.repo == other.repo and self.ref == other.ref
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.ref)
 
     @classmethod
     def request(cls, gitea, owner, repo):
@@ -544,7 +565,10 @@ class Issue(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Issue): return False
-        return self.gitea == other.gitea and self.repo == other.repo and self.id == other.id
+        return self.repo == other.repo and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.id)
 
     fields_to_parsers = {
         "milestone": lambda gitea, m: Milestone.parse_response(gitea, m),
@@ -631,7 +655,10 @@ class Team(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Team): return False
-        return self.gitea == other.gitea and self.organization == other.organization and self.id == other.id
+        return self.organization == other.organization and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.organization) ^ hash(self.id)
 
     fields_to_parsers = {
         "organization": lambda gitea, o: Organization.parse_response(gitea, o)
