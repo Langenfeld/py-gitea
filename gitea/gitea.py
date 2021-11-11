@@ -443,23 +443,22 @@ class Repository(GiteaApiObject):
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
 
-    def get_git_content(self, file_path: str = None, commit : "Commit" = None) -> List["Content"]:
+    def get_git_content(self: str = None, commit : "Commit" = None) -> List["Content"]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
         url = Repository.REPO_CONTENTS.format(owner=self.owner.username, repo=self.name)
         data = {"ref": "HEAD" if commit is None else commit.sha}
-        if file_path: data["filepath"] = file_path
         result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
     def get_file_content(self, content: "Content", commit : "Commit" = None) -> Union[str, List["Content"]]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
+        url = Repository.REPO_CONTENT.format(owner=self.owner.username,
+                                             repo=self.name, filepath=content.path)
+        data = {"ref": "HEAD" if commit is None else commit.sha}
         if content.type == Content.FILE:
-            url = Repository.REPO_CONTENT.format(owner=self.owner.username,
-                                                 repo=self.name, filepath=content.path)
-            data = {"ref": "HEAD" if commit is None else commit.sha}
             return self.gitea.requests_get(url, data)["content"]
         else:
-            return self.get_git_content(content.path, commit)
+            return [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
 
     def delete(self):
         self.gitea.requests_delete(
