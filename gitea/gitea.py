@@ -262,6 +262,7 @@ class Repository(GiteaApiObject):
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_CONTENTS = "/repos/{owner}/{repo}/contents"
+    REPO_CONTENT = """/repos/{owner}/{repo}/contents/{filepath}"""
 
     def __init__(self, gitea):
         super(Repository, self).__init__(gitea)
@@ -442,16 +443,23 @@ class Repository(GiteaApiObject):
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
 
-    def get_git_content(self, ref :  str = "HEAD"):
+    def get_git_content(self, file_path: str = None, commit : "Commit" = None) -> List["Content"]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
         url = Repository.REPO_CONTENTS.format(owner=self.owner.username, repo=self.name)
-        data = {"ref": ref}
-        result = self.gitea.requests_get(url)
+        data = {"ref": "HEAD" if commit is None else commit.sha}
+        if file_path: data["filepath"] = file_path
+        result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
-    def get_file_content(self):
+    def get_file_content(self, content: "Content", commit : "Commit" = None) -> Union[str, List["Content"]]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
-        pass
+        if content.type == Content.FILE:
+            url = Repository.REPO_CONTENT.format(owner=self.owner.username,
+                                                 repo=self.name, filepath=content.path)
+            data = {"ref": "HEAD" if commit is None else commit.sha}
+            return self.gitea.requests_get(url, data)["content"]
+        else:
+            return self.get_git_content(self.repo.owner.name, self.repo.name, content.path)
 
     def delete(self):
         self.gitea.requests_delete(
@@ -693,6 +701,21 @@ class Team(GiteaApiObject):
     def remove_team_member(self, user_name: str):
         url = f"/teams/{self.id}/members/{user_name}"
         self.gitea.requests_delete(url)
+
+class Content(GiteaApiObject):
+    GET_API_OBJECT = """/repos/{owner}/{repo}/contents/{filepath}"""
+
+    FILE = "file"
+
+    def __init__(self, gitea):
+        super(Content, self).__init__(gitea)
+
+    def __eq__(self, other):
+        if not isinstance(other, Team): return False
+        return self.repo == self.repo and self.sha == other.sha and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.repo) ^ hash(self.sha) ^ hash(self.name)
 
 
 class Util:

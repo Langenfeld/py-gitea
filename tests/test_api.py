@@ -133,11 +133,15 @@ def test_list_branches(instance):
     master = [b for b in branches if b.name == "master"]
     assert len(master) > 0
 
-def test_list_files(instance):
+def test_list_files_and_content(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
     content = repo.get_git_content()
-    assert True
+    readmes = [c for c in content if c.name == "README.md"]
+    assert len(readmes) > 0
+    readme_content = repo.get_file_content(readmes[0])
+    assert len(readme_content) > 0
+
 
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
