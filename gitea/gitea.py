@@ -459,7 +459,7 @@ class Repository(GiteaApiObject):
             data = {"ref": "HEAD" if commit is None else commit.sha}
             return self.gitea.requests_get(url, data)["content"]
         else:
-            return self.get_git_content(self.repo.owner.name, self.repo.name, content.path)
+            return self.get_git_content(self.owner.name, self.name, content.path)
 
     def delete(self):
         self.gitea.requests_delete(
