@@ -69,7 +69,10 @@ class Organization(GiteaApiObject):
         results = self.gitea.requests_get(
             Organization.ORG_TEAMS_REQUEST % self.username
         )
-        return [Team.parse_response(self.gitea, result) for result in results]
+        teams = [Team.parse_response(self.gitea, result) for result in results]
+        # organisation seems to be missing using this request, so we add org manually
+        for t in teams: setattr(t, "_organization", self)
+        return teams
 
     def get_team(self, name) -> "Team":
         teams = self.get_teams()

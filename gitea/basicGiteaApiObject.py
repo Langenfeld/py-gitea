@@ -54,6 +54,9 @@ class BasicGiteaApiObject:
         for name in cls.patchable_fields:
             if not hasattr(api_object,name):
                 cls._add_property(name, None, api_object)
+        for name in cls.fields_to_parsers.keys():
+            if not hasattr(api_object,name):
+                cls._add_readonly_property(name, None, api_object)
 
     @classmethod
     def _add_property(cls, name, value, api_object):
