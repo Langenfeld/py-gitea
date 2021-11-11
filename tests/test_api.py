@@ -79,7 +79,7 @@ def test_change_user(instance):
 def test_create_org(instance):
     user = instance.get_user()
     org = instance.create_org(user, test_org, "some-desc", "loc")
-    assert org.get_members() == [user]
+    assert org.get_members()[0] == user
     assert org.description == "some-desc"
     assert org.username == test_org
     assert org.location == "loc"

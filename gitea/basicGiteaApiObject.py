@@ -1,24 +1,22 @@
-from .exceptions import ObjectIsInvalid
+from .exceptions import ObjectIsInvalid, MissiongEqualyImplementation
 
 
 class BasicGiteaApiObject:
     GET_API_OBJECT = "FORMAT/STINING/{argument}"
     PATCH_API_OBJECT = "FORMAT/STINING/{argument}"
 
-    def __init__(self, gitea, id):
-        self.__id = id
+    def __init__(self, gitea):
         self.gitea = gitea
         self.deleted = False  # set if .delete was called, so that an exception is risen
         self.dirty_fields = set()
 
-    def __eq__(self, other):
-        return other.id == self.id if isinstance(other, type(self)) else False
-
     def __str__(self):
-        return "GiteaAPIObject (%s) id: %s" % (type(self), self.id)
+        return "GiteaAPIObject (%s):" % (type(self))
 
-    def __hash__(self):
-        return self.id
+    def __eq__(self, other):
+        """Compare only fields that are part of the gitea-data"""
+        raise MissiongEqualyImplementation()
+
 
     fields_to_parsers = {}
 
@@ -30,12 +28,8 @@ class BasicGiteaApiObject:
 
     @classmethod
     def parse_response(cls, gitea, result) -> "BasicGiteaApiObject":
-        if "id" in result:
-            id = int(result["id"])
-        else:
-            id = hash(result.items)
         # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
-        api_object = cls(gitea, id=id)
+        api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)
         return api_object
 
@@ -56,7 +50,7 @@ class BasicGiteaApiObject:
                cls._add_property(name, value, api_object)
             else:
                 cls._add_readonly_property(name,value,api_object)
-        # add all patchable fields to be watched if changed
+        # add all patchable fields missing in the request to be writable
         for name in cls.patchable_fields:
             if not hasattr(api_object,name):
                 cls._add_property(name, None, api_object)

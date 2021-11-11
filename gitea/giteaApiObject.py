@@ -2,17 +2,17 @@ from .basicGiteaApiObject import BasicGiteaApiObject
 
 
 class GiteaApiObject(BasicGiteaApiObject):
-    GET_API_OBJECT = "FORMAT/STINING/{argument}"
-    PATCH_API_OBJECT = "FORMAT/STINING/{argument}"
+    GET_API_OBJECT = "FORMAT/STRING/{argument}"
+    PATCH_API_OBJECT = "FORMAT/STRING/{argument}"
 
-    def __init__(self, gitea, id):
-        super(GiteaApiObject, self).__init__(gitea, id)
+    def __init__(self, gitea):
+        super(GiteaApiObject, self).__init__(gitea)
 
     @classmethod
     def request(cls, gitea, id):
         """Use for giving a nice e.g. 'request(gita, orgname, repo, ticket)'.
         All args are put into an args tuple for passing around"""
-        return cls._request(gitea, {"id": id})
+        return cls._request(gitea)
 
     @classmethod
     def _request(cls, gitea, args):
