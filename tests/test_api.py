@@ -79,7 +79,7 @@ def test_change_user(instance):
 def test_create_org(instance):
     user = instance.get_user()
     org = instance.create_org(user, test_org, "some-desc", "loc")
-    assert org.get_members() == [user]
+    assert org.get_members()[0] == user
     assert org.description == "some-desc"
     assert org.username == test_org
     assert org.location == "loc"
@@ -133,6 +133,30 @@ def test_list_branches(instance):
     master = [b for b in branches if b.name == "master"]
     assert len(master) > 0
 
+def test_list_files_and_content(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    content = repo.get_git_content()
+    readmes = [c for c in content if c.name == "README.md"]
+    assert len(readmes) > 0
+    readme_content = repo.get_file_content(readmes[0])
+    assert len(readme_content) > 0
+
+# TODO: make this testable
+"""
+def test_list_files_and_content_testorg(instance):
+    org = Organization.request(instance, "testtest")
+    repo = org.get_repository("test")
+    content = repo.get_git_content()
+    readmes = [c for c in content if c.name == "filefolder"]
+    assert len(readmes) > 0
+    readme_content = repo.get_file_content(readmes[0])
+    assert len(readme_content) > 0
+    lower_readme = [c for c in readme_content if c.name == "testfile.md"]
+    lower_r_content = repo.get_file_content(lower_readme[0])
+    assert len(lower_r_content) > 0
+"""
+
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
@@ -168,6 +192,19 @@ def test_create_issue(instance):
     assert issue.state == Issue.OPENED
     assert issue.title == "TestIssue"
     assert issue.body == "Body text with this issue"
+
+def test_hashing(instance):
+    #just call the hash function of each object to see if something bad happens
+    org = Organization.request(instance, test_org)
+    team = org.get_team(test_team)
+    user = instance.get_user_by_name(test_user)
+    #TODO test for milestones (Todo: add milestone adding)
+    repo = org.get_repositories()[0]
+    milestone = repo.create_milestone("mystone", "this is only a teststone")
+    issue = repo.get_issues()[0]
+    branch = repo.get_branches()[0]
+    commit = repo.get_commits()[0]
+    assert len(set([org, team, user, repo, issue, branch, commit, milestone]))
 
 def test_team_get_org(instance):
     org = Organization.request(instance, test_org)
