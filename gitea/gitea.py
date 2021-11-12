@@ -543,8 +543,8 @@ class Commit(GiteaApiObject):
         super(Commit, self).__init__(gitea)
 
     fields_to_parsers = {
-        # NOTE: do not try to parse gitea-users from git-committers/authors, as
-        # they are not necessarily users of gitea as well
+        # NOTE: api may return None for commiters that are no gitea users
+        {"author": lambda gitea, u: User.parse_response(gitea, u) if u else None}
     }
 
     def __eq__(self, other):
