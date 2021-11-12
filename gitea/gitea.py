@@ -240,7 +240,8 @@ class Branch(GiteaApiObject):
         return hash(self.commit) ^ hash(self.name)
 
     fields_to_parsers = {
-        "commit": lambda gitea, c: Commit.parse_response(gitea, c)
+        # This is not a commit object
+        #"commit": lambda gitea, c: Commit.parse_response(gitea, c)
     }
 
     @classmethod
@@ -561,8 +562,10 @@ class Commit(GiteaApiObject):
 
     @classmethod
     def parse_response(cls, gitea, result):
+        commit_cache = result["commit"]
         api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)
+        BasicGiteaApiObject._add_readonly_property("inner_commit", commit_cache, api_object)
         return api_object
 
 
