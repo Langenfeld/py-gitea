@@ -193,6 +193,19 @@ def test_create_issue(instance):
     assert issue.title == "TestIssue"
     assert issue.body == "Body text with this issue"
 
+def test_hashing(instance):
+    #just call the hash function of each object to see if something bad happens
+    org = Organization.request(instance, test_org)
+    team = org.get_team(test_team)
+    user = instance.get_user_by_name(test_user)
+    #TODO test for milestones (Todo: add milestone adding)
+    repo = org.get_repositories()[0]
+    milestone = repo.create_milestone("mystone", "this is only a teststone")
+    issue = repo.get_issues()[0]
+    branch = repo.get_branches()[0]
+    commit = repo.get_commits()[0]
+    assert len(set([org, team, user, repo, issue, branch, commit, milestone]))
+
 def test_team_get_org(instance):
     org = Organization.request(instance, test_org)
     user = instance.get_user_by_name(test_user)

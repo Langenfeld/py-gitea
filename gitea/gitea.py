@@ -234,10 +234,10 @@ class Branch(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Branch): return False
-        return self.repo == other.repo and self.name == other.name
+        return self.commit == other.commit and self.name == other.name
 
     def __hash__(self):
-        return hash(self.repo) ^ hash(self.name)
+        return hash(self.commit) ^ hash(self.name)
 
     fields_to_parsers = {
         "commit": lambda gitea, c: Commit.parse_response(gitea, c)
@@ -263,6 +263,7 @@ class Repository(GiteaApiObject):
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_CONTENTS = "/repos/{owner}/{repo}/contents"
     REPO_CONTENT = """/repos/{owner}/{repo}/contents/{filepath}"""
+    REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
 
     def __init__(self, gitea):
         super(Repository, self).__init__(gitea)
@@ -384,6 +385,13 @@ class Repository(GiteaApiObject):
         )
         return Issue.parse_response(self.gitea, result)
 
+    def create_milestone(self, title: str, description: str, due_date: str = None, state:str = "open") -> "Milestone":
+        url = Repository.REPO_MILESTONES.format(owner=self.owner.username, repo=self.name)
+        data= {"title": title, "description": description, "state": state}
+        if due_date: data["due_date"] = due_date
+        result = self.gitea.requests_post(url, data=data)
+        return Milestone.parse_response(self.gitea, result)
+
     def create_gitea_hook(self, hook_url: str, events: List[str]):
         url = f"/repos/{self.owner.username}/{self.name}/hooks"
         data = {
@@ -476,10 +484,10 @@ class Milestone(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Milestone): return False
-        return self.repo == other.repo and self.id == other.id
+        return self.gitea == other.gitea and self.id == other.id
 
     def __hash__(self):
-        return hash(self.repo) ^ hash(self.id)
+        return hash(self.gitea) ^ hash(self.id)
 
     fields_to_parsers = {
         "closed_at": lambda gitea, t: Util.convert_time(t),
@@ -541,10 +549,10 @@ class Commit(GiteaApiObject):
 
     def __eq__(self, other):
         if not isinstance(other, Commit): return False
-        return self.repo == other.repo and self.ref == other.ref
+        return self.sha == other.sha
 
     def __hash__(self):
-        return hash(self.repo) ^ hash(self.ref)
+        return hash(self.sha)
 
     @classmethod
     def request(cls, gitea, owner, repo):
