@@ -544,7 +544,7 @@ class Commit(GiteaApiObject):
 
     fields_to_parsers = {
         # NOTE: api may return None for commiters that are no gitea users
-        {"author": lambda gitea, u: User.parse_response(gitea, u) if u else None}
+        "author": lambda gitea, u: User.parse_response(gitea, u) if u else None
     }
 
     def __eq__(self, other):
