@@ -1,5 +1,9 @@
 from .gitea import (
     Gitea,
+    NotFoundException,
+    AlreadyExistsException,
+)
+from .apiobject import (
     User,
     Organization,
     Team,
@@ -9,6 +13,9 @@ from .gitea import (
     AlreadyExistsException,
     Issue,
     Milestone,
+    Commit,
+    Comment,
+    Content
 )
 
 __all__ = [
@@ -21,5 +28,8 @@ __all__ = [
     'NotFoundException',
     'AlreadyExistsException',
     'Issue',
-    'Milestone'
+    'Milestone',
+    'Commit',
+    'Comment',
+    'Content'
 ]

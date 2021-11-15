@@ -1,7 +1,5 @@
 from .exceptions import ObjectIsInvalid, MissiongEqualyImplementation,RawRequestEndpointMissing
 
-
-
 class ReadonlyApiObject:
 
     def __init__(self, gitea):
@@ -23,7 +21,7 @@ class ReadonlyApiObject:
 
     @classmethod
     def request(cls, gitea, id):
-        if hasattr("GET_API_OBJECT", cls):
+        if hasattr("API_OBJECT", cls):
             return cls._request(gitea)
         else:
             raise RawRequestEndpointMissing()
@@ -41,7 +39,7 @@ class ReadonlyApiObject:
     @classmethod
     def _get_gitea_api_object(cls, gitea, args):
         """Retrieving an object always as GET_API_OBJECT """
-        return gitea.requests_get(cls.GET_API_OBJECT.format(**args))
+        return gitea.requests_get(cls.API_OBJECT.format(**args))
 
     @classmethod
     def parse_response(cls, gitea, result) -> "ReadonlyApiObject":

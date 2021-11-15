@@ -282,7 +282,10 @@ def test_delete_org(instance):
 
 
 def test_delete_user(instance):
-    user = User.request(instance, test_user)
+    user_name = test_user + "delte_test"
+    email = user_name + "@example.org"
+    user = instance.create_user(user_name, email, "abcdefg1.23AB", send_notify=False)
+    assert user.username == user_name
     user.delete()
     with pytest.raises(NotFoundException) as e:
-        User.request(instance, test_user)
+        User.request(instance, user_name)

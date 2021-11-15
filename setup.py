@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup_args = dict(
     name='py-gitea',
-    version='0.1.8',
+    version='0.1.9',
     description='A python wrapper for the Gitea API',
     long_description_content_type="text/markdown",
     long_description=README,
