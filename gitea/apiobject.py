@@ -318,7 +318,7 @@ class Repository(ApiObject):
     def get_commits(self) -> List["Commit"]:
         """Get all the Commits of this Repository."""
         try:
-            results = self.gitea.requests_get_commits(
+            results = self.gitea.requests_get_paginated(
                 Repository.REPO_COMMITS % (self.owner.username, self.name)
             )
         except ConflictException as err:
