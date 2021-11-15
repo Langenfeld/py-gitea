@@ -6,12 +6,11 @@ from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
 import requests
 from httpcache import CachingHTTPAdapter
 
-from .basicGiteaApiObject import BasicGiteaApiObject
+from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
-from .giteaApiObject import GiteaApiObject
 
 
-class Organization(GiteaApiObject):
+class Organization(ApiObject):
     """see https://try.gitea.io/api/swagger#/organization/orgGetAll"""
 
     GET_API_OBJECT = """/orgs/{name}"""  # <org>
@@ -42,7 +41,7 @@ class Organization(GiteaApiObject):
     def parse_response(cls, gitea, result):
         api_object = super().parse_response(gitea, result)
         # add "name" field to make this behave similar to users
-        Organization._add_readonly_property("name", result["username"], api_object)
+        Organization._add_read_property("name", result["username"], api_object)
         return api_object
 
     patchable_fields = {"description", "full_name", "location", "visibility", "website"}
@@ -100,7 +99,7 @@ class Organization(GiteaApiObject):
         except:
             return False
 
-    def remove_member(self, user: GiteaApiObject):
+    def remove_member(self, user: "User"):
         path = f"/orgs/{self.username}/members/{user.username}"
         self.gitea.requests_delete(path)
 
@@ -120,7 +119,7 @@ class Organization(GiteaApiObject):
         return results
 
 
-class User(GiteaApiObject):
+class User(ApiObject):
     GET_API_OBJECT = """/users/{name}"""  # <org>
     USER_MAIL = """/user/emails?sudo=%s"""  # <name>
     USER_PATCH = """/admin/users/%s"""  # <username>
@@ -226,18 +225,19 @@ class User(GiteaApiObject):
         return results
 
 
-class Branch(GiteaApiObject):
+class Branch(ReadonlyApiObject):
     GET_API_OBJECT = """/repos/%s/%s/branches/%s"""  # <owner>, <repo>, <ref>
 
     def __init__(self, gitea):
         super(Branch, self).__init__(gitea)
 
     def __eq__(self, other):
-        if not isinstance(other, Branch): return False
+        if not isinstance(other, Branch):
+            return False
         return self.commit == other.commit and self.name == other.name
 
     def __hash__(self):
-        return hash(self.commit) ^ hash(self.name)
+        return hash(self.commit["id"]) ^ hash(self.name)
 
     fields_to_parsers = {
         # This is not a commit object
@@ -249,7 +249,7 @@ class Branch(GiteaApiObject):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
 
-class Repository(GiteaApiObject):
+class Repository(ApiObject):
     REPO_IS_COLLABORATOR = (
         """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     )
@@ -374,7 +374,7 @@ class Repository(GiteaApiObject):
     def get_full_name(self) -> str:
         return self.owner.username + "/" + self.name
 
-    def create_issue(self, title, assignees=[], description="") -> GiteaApiObject:
+    def create_issue(self, title, assignees=[], description="") -> ApiObject:
         data = {
             "assignees": assignees,
             "body": description,
@@ -475,7 +475,7 @@ class Repository(GiteaApiObject):
         )
         self.deleted = True
 
-class Milestone(GiteaApiObject):
+class Milestone(ApiObject):
     GET_API_OBJECT = (
         """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo>
     )
@@ -517,7 +517,7 @@ class Milestone(GiteaApiObject):
         return cls._request(gitea, {"owner": owner, "repo": repo, "number": number})
 
 
-class Comment(BasicGiteaApiObject):
+class Comment(ApiObject):
     PATCH_API_OBJECT = "/repos/{owner}/{repo}/issues/comments/{id}"
 
     def __init__(self, gitea):
@@ -539,7 +539,7 @@ class Comment(BasicGiteaApiObject):
     patchable_fields = {"body"}
 
 
-class Commit(GiteaApiObject):
+class Commit(ReadonlyApiObject):
     def __init__(self, gitea):
         super(Commit, self).__init__(gitea)
 
@@ -565,11 +565,11 @@ class Commit(GiteaApiObject):
         commit_cache = result["commit"]
         api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)
-        BasicGiteaApiObject._add_readonly_property("inner_commit", commit_cache, api_object)
+        Commit._add_read_property("inner_commit", commit_cache, api_object)
         return api_object
 
 
-class Issue(GiteaApiObject):
+class Issue(ApiObject):
     GET_API_OBJECT = """/repos/{owner}/{repo}/issues/{number}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
@@ -645,7 +645,7 @@ class Issue(GiteaApiObject):
             path, data={"created": created, "time": int(time), "user_name": user_name}
         )
 
-    def get_comments(self) -> List[GiteaApiObject]:
+    def get_comments(self) -> List[ApiObject]:
         results = self.gitea.requests_get(
             Issue.GET_COMMENTS % (self.owner.username, self.repo)
         )
@@ -660,7 +660,7 @@ class Issue(GiteaApiObject):
         ]
 
 
-class Team(GiteaApiObject):
+class Team(ApiObject):
     GET_API_OBJECT = """/teams/{id}"""  # <id>
     ADD_USER = """/teams/%s/members/%s"""  # <id, username to add>
     ADD_REPO = """/teams/%s/repos/%s/%s"""  # <id, org, repo>
@@ -712,7 +712,7 @@ class Team(GiteaApiObject):
         url = f"/teams/{self.id}/members/{user_name}"
         self.gitea.requests_delete(url)
 
-class Content(GiteaApiObject):
+class Content(ReadonlyApiObject):
     GET_API_OBJECT = """/repos/{owner}/{repo}/contents/{filepath}"""
 
     FILE = "file"
