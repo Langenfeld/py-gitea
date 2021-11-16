@@ -30,10 +30,6 @@ class ReadonlyApiObject:
     def _request(cls, gitea, args):
         result = cls._get_gitea_api_object(gitea, args)
         api_object = cls.parse_response(gitea, result)
-        # hack: not all necessary request args in api result (e.g. repo name in issue)
-        for key, value in args.items():
-            if not hasattr(api_object, key):
-                setattr(api_object, key, value)
         return api_object
 
     @classmethod
