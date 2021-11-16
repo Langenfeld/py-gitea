@@ -18,7 +18,7 @@ class Organization(ApiObject):
     ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea):
-        super(Organization, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Organization): return False
@@ -122,7 +122,7 @@ class User(ApiObject):
     USER_HEATMAP = """/users/%s/heatmap"""  # <username>
 
     def __init__(self, gitea):
-        super(User, self).__init__(gitea)
+        super().__init__(gitea)
         self._emails = []
 
     def __eq__(self, other):
@@ -222,7 +222,7 @@ class User(ApiObject):
 class Branch(ReadonlyApiObject):
 
     def __init__(self, gitea):
-        super(Branch, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Branch):
@@ -258,7 +258,7 @@ class Repository(ApiObject):
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
 
     def __init__(self, gitea):
-        super(Repository, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Repository): return False
@@ -469,7 +469,7 @@ class Milestone(ApiObject):
     API_OBJECT = """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo>
 
     def __init__(self, gitea):
-        super(Milestone, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Milestone): return False
@@ -508,7 +508,7 @@ class Milestone(ApiObject):
 class Comment(ApiObject):
 
     def __init__(self, gitea):
-        super(Comment, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Comment): return False
@@ -525,8 +525,9 @@ class Comment(ApiObject):
 
 
 class Commit(ReadonlyApiObject):
+
     def __init__(self, gitea):
-        super(Commit, self).__init__(gitea)
+        super().__init__(gitea)
 
     _fields_to_parsers = {
         # NOTE: api may return None for commiters that are no gitea users
@@ -560,7 +561,7 @@ class Issue(ApiObject):
     CLOSED = "closed"
 
     def __init__(self, gitea):
-        super(Issue, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Issue): return False
@@ -660,7 +661,7 @@ class Team(ApiObject):
     GET_REPOS = """/teams/%s/repos"""  # <id>
 
     def __init__(self, gitea):
-        super(Team, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Team): return False
@@ -708,7 +709,7 @@ class Content(ReadonlyApiObject):
     FILE = "file"
 
     def __init__(self, gitea):
-        super(Content, self).__init__(gitea)
+        super().__init__(gitea)
 
     def __eq__(self, other):
         if not isinstance(other, Team): return False

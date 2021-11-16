@@ -21,7 +21,7 @@ class ReadonlyApiObject:
     _fields_to_parsers = {}
 
     @classmethod
-    def request(cls, gitea, id):
+    def request(cls, gitea):
         if hasattr("API_OBJECT", cls):
             return cls._request(gitea)
         else:
@@ -47,6 +47,7 @@ class ReadonlyApiObject:
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
+        x = 1
         for name, value in result.items():
             if name in cls._fields_to_parsers and value is not None:
                 parse_func = cls._fields_to_parsers[name]
@@ -60,10 +61,10 @@ class ReadonlyApiObject:
     @classmethod
     def _add_read_property(cls, name, value, api_object):
         if not hasattr(api_object, name):
+            setattr(api_object, "_" + name, value)
             prop = property(
                 (lambda name: lambda self: self._get_var(name))(name))
             setattr(cls, name, prop)
-            setattr(api_object, "_" + name, value)
         else:
             raise AttributeError(f"Attribute {name} already exists on api object.")
 
@@ -98,21 +99,17 @@ class ApiObject(ReadonlyApiObject):
     @classmethod
     def _initialize(cls, gitea, api_object, result):
         super()._initialize(gitea, api_object, result)
-        for name, value in result.items():
-            if name in cls._patchable_fields:
-                cls._add_write_property(name, value, api_object)
-        # add all patchable fields missing in the request to be writable
         for name in cls._patchable_fields:
-            if not hasattr(api_object, name):
-                cls._add_write_property(name, None, api_object)
+            cls._add_write_property(name, None, api_object)
 
     @classmethod
     def _add_write_property(cls, name, value, api_object):
+        if not hasattr(api_object, "_" + name):
+            setattr(api_object, "_" + name, value)
         prop = property(
             (lambda name: lambda self: self._get_var(name))(name),
             (lambda name: lambda self, v: self.__set_var(name, v))(name))
         setattr(cls, name, prop)
-        setattr(api_object, "_" + name, value)
 
     def __set_var(self, name, i):
         if self.deleted:

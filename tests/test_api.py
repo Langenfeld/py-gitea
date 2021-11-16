@@ -230,9 +230,12 @@ def test_change_issue(instance):
     issue2.milestone = milestone
     issue2.commit()
     del issue2
+    issue3 = Issue.request(instance, org.username, repo.name, number)
+    assert issue3.milestone is not None
+    assert issue3.milestone.description == "this is only a teststone2"
     issues = repo.get_issues()
-    #assert len([issue for issue in issues
-    #            if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
+    assert len([issue for issue in issues
+                if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
 
 def test_team_get_org(instance):
     org = Organization.request(instance, test_org)
