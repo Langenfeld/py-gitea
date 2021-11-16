@@ -13,10 +13,12 @@ class ObjectIsInvalid(Exception):
 class ConflictException(Exception):
     pass
 
+
 class RawRequestEndpointMissing(Exception):
     """This ApiObject can only be obtained through other api objects and does not have
     diret .request method."""
     pass
+
 
 class MissiongEqualyImplementation(Exception):
     """

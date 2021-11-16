@@ -1,4 +1,5 @@
-from .exceptions import ObjectIsInvalid, MissiongEqualyImplementation,RawRequestEndpointMissing
+from .exceptions import ObjectIsInvalid, MissiongEqualyImplementation, RawRequestEndpointMissing
+
 
 class ReadonlyApiObject:
 
@@ -53,7 +54,7 @@ class ReadonlyApiObject:
             cls._add_read_property(name, value, api_object)
         # add all patchable fields missing in the request to be writable
         for name in cls._fields_to_parsers.keys():
-            if not hasattr(api_object,name):
+            if not hasattr(api_object, name):
                 cls._add_read_property(name, None, api_object)
 
     @classmethod
@@ -73,7 +74,6 @@ class ReadonlyApiObject:
 
 
 class ApiObject(ReadonlyApiObject):
-
     _patchable_fields = set()
 
     def __init__(self, gitea):
@@ -97,13 +97,13 @@ class ApiObject(ReadonlyApiObject):
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
-        super()._initialize(gitea,api_object,result)
+        super()._initialize(gitea, api_object, result)
         for name, value in result.items():
             if name in cls._patchable_fields:
-                cls._add_write_property(name,value,api_object)
+                cls._add_write_property(name, value, api_object)
         # add all patchable fields missing in the request to be writable
         for name in cls._patchable_fields:
-            if not hasattr(api_object,name):
+            if not hasattr(api_object, name):
                 cls._add_write_property(name, None, api_object)
 
     @classmethod

@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
 
+
 class Organization(ApiObject):
     """see https://try.gitea.io/api/swagger#/organization/orgGetAll"""
 
@@ -233,7 +234,7 @@ class Branch(ReadonlyApiObject):
 
     _fields_to_parsers = {
         # This is not a commit object
-        #"commit": lambda gitea, c: Commit.parse_response(gitea, c)
+        # "commit": lambda gitea, c: Commit.parse_response(gitea, c)
     }
 
     @classmethod
@@ -269,7 +270,7 @@ class Repository(ApiObject):
     _fields_to_parsers = {
         # dont know how to tell apart user and org as owner except form email being empty.
         "owner": lambda gitea, r: Organization.parse_response(gitea, r)
-                                if r["email"] == "" else User.parse_response(gitea, r),
+        if r["email"] == "" else User.parse_response(gitea, r),
         "updated_at": lambda gitea, t: Util.convert_time(t),
     }
 
@@ -374,9 +375,9 @@ class Repository(ApiObject):
         )
         return Issue.parse_response(self.gitea, result)
 
-    def create_milestone(self, title: str, description: str, due_date: str = None, state:str = "open") -> "Milestone":
+    def create_milestone(self, title: str, description: str, due_date: str = None, state: str = "open") -> "Milestone":
         url = Repository.REPO_MILESTONES.format(owner=self.owner.username, repo=self.name)
-        data= {"title": title, "description": description, "state": state}
+        data = {"title": title, "description": description, "state": state}
         if due_date: data["due_date"] = due_date
         result = self.gitea.requests_post(url, data=data)
         return Milestone.parse_response(self.gitea, result)
@@ -440,14 +441,14 @@ class Repository(ApiObject):
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
 
-    def get_git_content(self: str = None, commit : "Commit" = None) -> List["Content"]:
+    def get_git_content(self: str = None, commit: "Commit" = None) -> List["Content"]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
         url = Repository.REPO_CONTENTS.format(owner=self.owner.username, repo=self.name)
         data = {"ref": "HEAD" if commit is None else commit.sha}
         result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
-    def get_file_content(self, content: "Content", commit : "Commit" = None) -> Union[str, List["Content"]]:
+    def get_file_content(self, content: "Content", commit: "Commit" = None) -> Union[str, List["Content"]]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
         url = Repository.REPO_CONTENT.format(owner=self.owner.username,
                                              repo=self.name, filepath=content.path)
@@ -459,9 +460,10 @@ class Repository(ApiObject):
 
     def delete(self):
         self.gitea.requests_delete(
-                Repository.REPO_DELETE % (self.owner.username, self.name)
+            Repository.REPO_DELETE % (self.owner.username, self.name)
         )
         self.deleted = True
+
 
 class Milestone(ApiObject):
     API_OBJECT = """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo>
@@ -701,6 +703,7 @@ class Team(ApiObject):
         url = f"/teams/{self.id}/members/{user_name}"
         self.gitea.requests_delete(url)
 
+
 class Content(ReadonlyApiObject):
     FILE = "file"
 
@@ -723,4 +726,3 @@ class Util:
             return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
         except ValueError:
             return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S")
-
