@@ -28,7 +28,7 @@ class Organization(ApiObject):
         return hash(self.gitea) ^ hash(self.name)
 
     @classmethod
-    def request(cls, gitea, name):
+    def request(cls, gitea: 'Gitea', name: str):
         return cls._request(gitea, {"name": name})
 
     @classmethod
@@ -138,7 +138,7 @@ class User(ApiObject):
         return self._emails
 
     @classmethod
-    def request(cls, gitea, name) -> "User":
+    def request(cls, gitea: 'Gitea', name: str) -> "User":
         api_object = cls._request(gitea, {"name": name})
         return api_object
 
@@ -238,7 +238,7 @@ class Branch(ReadonlyApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, repo, ref):
+    def request(cls, gitea: 'Gitea', owner: str, repo: str, ref: str):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
 
@@ -275,7 +275,7 @@ class Repository(ApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, name):
+    def request(cls, gitea: 'Gitea', owner: str, name: str):
         return cls._request(gitea, {"owner": owner, "name": name})
 
     _patchable_fields = {
@@ -501,7 +501,7 @@ class Milestone(ApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, owner, repo, number):
+    def request(cls, gitea: 'Gitea', owner: str, repo: str, number: str):
         return cls._request(gitea, {"owner": owner, "repo": repo, "number": number})
 
 
@@ -600,7 +600,7 @@ class Issue(ApiObject):
         self.dirty_fields = {}
 
     @classmethod
-    def request(cls, gitea, owner, repo, number):
+    def request(cls, gitea: 'Gitea', owner: str, repo: str, number: str):
         api_object = cls._request(gitea, {"owner": owner, "repo": repo, "index": number})
         return api_object
 
@@ -674,7 +674,7 @@ class Team(ApiObject):
     }
 
     @classmethod
-    def request(cls, gitea, organization, team):
+    def request(cls, gitea: 'Gitea', organization: str, team: str):
         return cls._request(gitea, {"id": id})
 
     _patchable_fields = {"description", "name", "permission", "units"}
