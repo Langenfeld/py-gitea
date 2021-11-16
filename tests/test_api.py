@@ -1,7 +1,7 @@
 import pytest
 import uuid
 
-from gitea import Gitea, User, Organization, Team, Repository, Issue
+from gitea import Gitea, User, Organization, Team, Repository, Issue, Milestone
 from gitea import NotFoundException, AlreadyExistsException
 
 # put a ".token" file into your directory containg only the token for gitea
@@ -172,6 +172,13 @@ def test_create_team(instance):
     assert team.description == "descr"
     assert team.organization == org
 
+def test_create_milestone(instance):
+        org = Organization.request(instance, test_org)
+        repo = org.get_repository(test_repo)
+        ms = repo.create_milestone("I love this Milestone", "Find an otter to adopt this milestone")
+        assert isinstance(ms, Milestone)
+        assert ms.title == "I love this Milestone"
+
 def test_user_teams(instance):
     org = Organization.request(instance, test_org)
     team = org.get_team(test_team)
@@ -205,6 +212,27 @@ def test_hashing(instance):
     branch = repo.get_branches()[0]
     commit = repo.get_commits()[0]
     assert len(set([org, team, user, repo, issue, branch, commit, milestone]))
+
+
+def test_change_issue(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repositories()[0]
+    ms_title = "othermilestone"
+    issue = Issue.create_issue(instance, repo, "IssueTestissue with Testinput", "asdf2332")
+    new_body = "some new description with some more of that char stuff :)"
+    issue.body = new_body
+    issue.commit()
+    number = issue.number
+    del issue
+    issue2 = Issue.request(instance, org.username, repo.name, number)
+    assert issue2.body == new_body
+    milestone = repo.create_milestone(ms_title, "this is only a teststone2")
+    issue2.milestone = milestone
+    issue2.commit()
+    del issue2
+    issues = repo.get_issues()
+    assert len([issue for issue in issues
+                if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
 
 def test_team_get_org(instance):
     org = Organization.request(instance, test_org)

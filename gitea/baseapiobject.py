@@ -17,7 +17,7 @@ class ReadonlyApiObject:
         """Hash only fields that are part of the gitea-data identity"""
         raise MissiongEqualyImplementation()
 
-    fields_to_parsers = {}
+    _fields_to_parsers = {}
 
     @classmethod
     def request(cls, gitea, id):
@@ -51,12 +51,12 @@ class ReadonlyApiObject:
     @classmethod
     def _initialize(cls, gitea, api_object, result):
         for name, value in result.items():
-            if name in cls.fields_to_parsers and value is not None:
-                parse_func = cls.fields_to_parsers[name]
+            if name in cls._fields_to_parsers and value is not None:
+                parse_func = cls._fields_to_parsers[name]
                 value = parse_func(gitea, value)
             cls._add_read_property(name, value, api_object)
         # add all patchable fields missing in the request to be writable
-        for name in cls.fields_to_parsers.keys():
+        for name in cls._fields_to_parsers.keys():
             if not hasattr(api_object,name):
                 cls._add_read_property(name, None, api_object)
 
@@ -78,26 +78,35 @@ class ReadonlyApiObject:
 
 class ApiObject(ReadonlyApiObject):
 
-    patchable_fields = set()
+    _patchable_fields = set()
 
     def __init__(self, gitea):
         super().__init__(gitea)
-        self.dirty_fields = set()
+        self._dirty_fields = set()
 
     def commit(self):
         raise NotImplemented()
 
+    _parsers_to_fields = {}
+
     def get_dirty_fields(self):
-        return {name: getattr(self, name) for name in self.dirty_fields}
+        dirty_fields_values = {}
+        for field in self._dirty_fields:
+            value = getattr(self, field)
+            if field in self._parsers_to_fields:
+                dirty_fields_values[field] = self._parsers_to_fields[field](value)
+            else:
+                dirty_fields_values[field] = value
+        return dirty_fields_values
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
         super()._initialize(gitea,api_object,result)
         for name, value in result.items():
-            if name in cls.patchable_fields:
+            if name in cls._patchable_fields:
                 cls._add_write_property(name,value,api_object)
         # add all patchable fields missing in the request to be writable
-        for name in cls.patchable_fields:
+        for name in cls._patchable_fields:
             if not hasattr(api_object,name):
                 cls._add_write_property(name, None, api_object)
 
@@ -112,5 +121,5 @@ class ApiObject(ReadonlyApiObject):
     def __set_var(self, name, i):
         if self.deleted:
             raise ObjectIsInvalid()
-        self.dirty_fields.add(name)
+        self._dirty_fields.add(name)
         setattr(self, "_" + name, i)

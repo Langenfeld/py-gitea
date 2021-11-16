@@ -31,13 +31,13 @@ class Organization(ApiObject):
         return cls._request(gitea, {"name": name})
 
     @classmethod
-    def parse_response(cls, gitea, result):
+    def parse_response(cls, gitea, result) -> 'Organization':
         api_object = super().parse_response(gitea, result)
         # add "name" field to make this behave similar to users
         Organization._add_read_property("name", result["username"], api_object)
         return api_object
 
-    patchable_fields = {"description", "full_name", "location", "visibility", "website"}
+    _patchable_fields = {"description", "full_name", "location", "visibility", "website"}
 
     def commit(self):
         values = self.get_dirty_fields()
@@ -141,7 +141,7 @@ class User(ApiObject):
         api_object = cls._request(gitea, {"name": name})
         return api_object
 
-    patchable_fields = {
+    _patchable_fields = {
         "active",
         "admin",
         "allow_create_organization",
@@ -231,7 +231,7 @@ class Branch(ReadonlyApiObject):
     def __hash__(self):
         return hash(self.commit["id"]) ^ hash(self.name)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         # This is not a commit object
         #"commit": lambda gitea, c: Commit.parse_response(gitea, c)
     }
@@ -246,7 +246,7 @@ class Repository(ApiObject):
     REPO_IS_COLLABORATOR = """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
-    REPO_ISSUES = """/repos/%s/%s/issues"""  # <owner, reponame>
+    REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
@@ -266,11 +266,10 @@ class Repository(ApiObject):
     def __hash__(self):
         return hash(self.owner) ^ hash(self.name)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         # dont know how to tell apart user and org as owner except form email being empty.
         "owner": lambda gitea, r: Organization.parse_response(gitea, r)
-        if r["email"] == ""
-        else User.parse_response(gitea, r),
+                                if r["email"] == "" else User.parse_response(gitea, r),
         "updated_at": lambda gitea, t: Util.convert_time(t),
     }
 
@@ -278,7 +277,7 @@ class Repository(ApiObject):
     def request(cls, gitea, owner, name):
         return cls._request(gitea, {"owner": owner, "name": name})
 
-    patchable_fields = {
+    _patchable_fields = {
         "allow_merge_commits",
         "allow_rebase",
         "allow_rebase_explicit",
@@ -333,16 +332,15 @@ class Repository(ApiObject):
         """Get issues of state Issue.open or Issue.closed of a repository."""
         assert state in [Issue.OPENED, Issue.CLOSED]
         issues = []
-        # "page": -1 is returning _all_ issues instead of pages. Hopefully this is intended behaviour.
-        data = {"page": -1, "state": state}
-        results = self.gitea.requests_get(
-            Repository.REPO_ISSUES % (self.owner.username, self.name), params=data
+        data = {"state": state}
+        results = self.gitea.requests_get_paginated(
+            Repository.REPO_ISSUES.format(owner=self.owner.username, repo=self.name), params=data
         )
         for result in results:
             issue = Issue.parse_response(self.gitea, result)
             # adding data not contained in the issue answer
-            setattr(issue, "repo", self.name)
-            setattr(issue, "owner", self.owner)
+            Issue._add_read_property("repo", self, issue)
+            Issue._add_read_property("owner", self.owner, issue)
             issues.append(issue)
         return issues
 
@@ -372,7 +370,7 @@ class Repository(ApiObject):
             "title": title,
         }
         result = self.gitea.requests_post(
-            Repository.REPO_ISSUES % (self.owner.username, self.name), data=data
+            Repository.REPO_ISSUES.format(owner=self.owner.username, repo=self.name), data=data
         )
         return Issue.parse_response(self.gitea, result)
 
@@ -478,12 +476,12 @@ class Milestone(ApiObject):
     def __hash__(self):
         return hash(self.gitea) ^ hash(self.id)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         "closed_at": lambda gitea, t: Util.convert_time(t),
         "due_on": lambda gitea, t: Util.convert_time(t),
     }
 
-    patchable_fields = {
+    _patchable_fields = {
         "allow_merge_commits",
         "allow_rebase",
         "allow_rebase_explicit",
@@ -517,7 +515,7 @@ class Comment(ApiObject):
     def __hash__(self):
         return hash(self.repo) ^ hash(self.id)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         "user": lambda gitea, r: User.parse_response(gitea, r),
         "created_at": lambda gitea, t: Util.convert_time(t),
         "updated_at": lambda gitea, t: Util.convert_time(t),
@@ -528,7 +526,7 @@ class Commit(ReadonlyApiObject):
     def __init__(self, gitea):
         super(Commit, self).__init__(gitea)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         # NOTE: api may return None for commiters that are no gitea users
         "author": lambda gitea, u: User.parse_response(gitea, u) if u else None
     }
@@ -551,7 +549,7 @@ class Commit(ReadonlyApiObject):
 
 
 class Issue(ApiObject):
-    API_OBJECT = """/repos/{owner}/{repo}/issues/{number}"""  # <owner, repo, index>
+    API_OBJECT = """/repos/{owner}/{repo}/issues/{index}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
     CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
@@ -569,15 +567,21 @@ class Issue(ApiObject):
     def __hash__(self):
         return hash(self.repo) ^ hash(self.id)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         "milestone": lambda gitea, m: Milestone.parse_response(gitea, m),
         "user": lambda gitea, u: User.parse_response(gitea, u),
         "assignee": lambda gitea, u: User.parse_response(gitea, u),
         "assignees": lambda gitea, us: [User.parse_response(gitea, u) for u in us],
         "state": lambda gitea, s: Issue.CLOSED if s == "closed" else Issue.OPENED,
+        # Repository in this request is just a "RepositoryMeta" record, thus request whole object
+        "repository": lambda gitea, r: Repository.request(gitea, r["owner"], r["name"])
     }
 
-    patchable_fields = {
+    _parsers_to_fields = {
+        "milestone": lambda m: m.id,
+    }
+
+    _patchable_fields = {
         "assignee",
         "assignees",
         "body",
@@ -587,9 +591,15 @@ class Issue(ApiObject):
         "title",
     }
 
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"owner": self.repository.owner.username, "repo": self.repository.name, "index": self.number}
+        self.gitea.requests_patch(Issue.API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
+
     @classmethod
     def request(cls, gitea, owner, repo, number):
-        api_object = cls._request(gitea, {"owner": owner, "repo": repo, "number": number})
+        api_object = cls._request(gitea, {"owner": owner, "repo": repo, "index": number})
         return api_object
 
     @classmethod
@@ -601,7 +611,7 @@ class Issue(ApiObject):
 
     def get_time_sum(self, user: User) -> int:
         results = self.gitea.requests_get(
-            Issue.GET_TIME % (self.owner.username, self.repo, self.number)
+            Issue.GET_TIME % (self.owner.username, self.repo.name, self.number)
         )
         return sum(
             result["time"]
@@ -611,22 +621,22 @@ class Issue(ApiObject):
 
     def get_times(self) -> Optional[Dict]:
         return self.gitea.requests_get(
-            Issue.GET_TIME % (self.owner.username, self.repo, self.number)
+            Issue.GET_TIME % (self.owner.username, self.repository.name, self.number)
         )
 
     def delete_time(self, time_id: str):
-        path = f"/repos/{self.owner.username}/{self.repo}/issues/{self.number}/times/{time_id}"
+        path = f"/repos/{self.owner.username}/{self.repository.name}/issues/{self.number}/times/{time_id}"
         self.gitea.requests_delete(path)
 
-    def add_time(self, time: int, created: str = None, user_name: str = None):
-        path = f"/repos/{self.owner.username}/{self.repo}/issues/{self.number}/times"
+    def add_time(self, time: int, created: str = None, user_name: User = None):
+        path = f"/repos/{self.owner.username}/{self.repository.name}/issues/{self.number}/times"
         self.gitea.requests_post(
             path, data={"created": created, "time": int(time), "user_name": user_name}
         )
 
     def get_comments(self) -> List[ApiObject]:
         results = self.gitea.requests_get(
-            Issue.GET_COMMENTS % (self.owner.username, self.repo)
+            Issue.GET_COMMENTS % (self.owner.username, self.repo.name)
         )
         allProjectComments = [
             Comment.parse_response(self.gitea, result) for result in results
@@ -657,7 +667,7 @@ class Team(ApiObject):
     def __hash__(self):
         return hash(self.organization) ^ hash(self.id)
 
-    fields_to_parsers = {
+    _fields_to_parsers = {
         "organization": lambda gitea, o: Organization.parse_response(gitea, o)
     }
 
@@ -665,7 +675,7 @@ class Team(ApiObject):
     def request(cls, gitea, organization, team):
         return cls._request(gitea, {"id": id})
 
-    patchable_fields = {"description", "name", "permission", "units"}
+    _patchable_fields = {"description", "name", "permission", "units"}
 
     def add_user(self, user: User):
         self.gitea.requests_put(Team.ADD_USER % (self.id, user.login))

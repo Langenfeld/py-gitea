@@ -37,3 +37,12 @@ def test_list_repos(instance):
         instance.create_repo(org, test_repo + "_" + str(i), str(i))
     repos = org.get_repositories()
     assert len(repos) >= 33
+
+
+def test_list_issue(instance):
+    org = Organization.request(instance, test_org)
+    repo = Repository.request(instance, org.username, test_repo)
+    for x in range(0,100):
+        Issue.create_issue(instance, repo, "TestIssue" + str(x), "We will be to many to be listed")
+    issues = repo.get_issues()
+    assert len(issues) > 98
