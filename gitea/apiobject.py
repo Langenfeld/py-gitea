@@ -302,7 +302,7 @@ class Repository(ApiObject):
         )
         return [Branch.parse_response(self.gitea, result) for result in results]
 
-    def add_branch(self, create_from: Branch, newname: str) -> "Commit":
+    def add_branch(self, create_from: Branch, newname: str) -> "Branch":
         """Add a branch to the repository"""
         # Note: will only work with gitea 1.13 or higher!
         data = {"new_branch_name": newname, "old_branch_name": create_from.name}
