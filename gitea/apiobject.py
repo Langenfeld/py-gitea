@@ -28,7 +28,7 @@ class Organization(ApiObject):
         return hash(self.gitea) ^ hash(self.name)
 
     @classmethod
-    def request(cls, gitea: 'Gitea', name: str):
+    def request(cls, gitea: 'Gitea', name: str) -> 'Organization':
         return cls._request(gitea, {"name": name})
 
     @classmethod
@@ -363,7 +363,7 @@ class Repository(ApiObject):
     def get_full_name(self) -> str:
         return self.owner.username + "/" + self.name
 
-    def create_issue(self, title, assignees=[], description="") -> ApiObject:
+    def create_issue(self, title, assignees=frozenset(), description="") -> ApiObject:
         data = {
             "assignees": assignees,
             "body": description,
@@ -542,7 +542,7 @@ class Commit(ReadonlyApiObject):
         return hash(self.sha)
 
     @classmethod
-    def parse_response(cls, gitea, result):
+    def parse_response(cls, gitea, result) -> 'Commit':
         commit_cache = result["commit"]
         api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)

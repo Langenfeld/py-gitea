@@ -47,7 +47,6 @@ class ReadonlyApiObject:
 
     @classmethod
     def _initialize(cls, gitea, api_object, result):
-        x = 1
         for name, value in result.items():
             if name in cls._fields_to_parsers and value is not None:
                 parse_func = cls._fields_to_parsers[name]
@@ -63,7 +62,7 @@ class ReadonlyApiObject:
         if not hasattr(api_object, name):
             setattr(api_object, "_" + name, value)
             prop = property(
-                (lambda name: lambda self: self._get_var(name))(name))
+                (lambda n: lambda self: self._get_var(n))(name))
             setattr(cls, name, prop)
         else:
             raise AttributeError(f"Attribute {name} already exists on api object.")
@@ -107,8 +106,8 @@ class ApiObject(ReadonlyApiObject):
         if not hasattr(api_object, "_" + name):
             setattr(api_object, "_" + name, value)
         prop = property(
-            (lambda name: lambda self: self._get_var(name))(name),
-            (lambda name: lambda self, v: self.__set_var(name, v))(name))
+            (lambda n: lambda self: self._get_var(n))(name),
+            (lambda n: lambda self, v: self.__set_var(n, v))(name))
         setattr(cls, name, prop)
 
     def __set_var(self, name, i):
