@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
 
 import requests
-from httpcache import CachingHTTPAdapter
 
 from .basicGiteaApiObject import BasicGiteaApiObject
 from .exceptions import *
