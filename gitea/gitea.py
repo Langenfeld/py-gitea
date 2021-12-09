@@ -760,8 +760,8 @@ class Gitea:
         self.url = gitea_url
         self.requests = requests.Session()
         if cached:
-            self.requests.mount("http://", CachingHTTPAdapter())
-            self.requests.mount("https://", CachingHTTPAdapter())
+            # TODO: Use Python 3.10 compatible caching
+            pass
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
