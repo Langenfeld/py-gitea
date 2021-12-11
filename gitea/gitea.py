@@ -324,11 +324,18 @@ class Repository(GiteaApiObject):
         """Get all Issues of this Repository (open and closed)"""
         return self.get_issues_state(Issue.OPENED) + self.get_issues_state(Issue.CLOSED)
 
-    def get_commits(self) -> List["Commit"]:
-        """Get all the Commits of this Repository."""
+    def get_commits(self, params=None) -> List["Commit"]:
+        """
+        Get all the Commits of this Repository.
+        Use params dict to define pages, page, sha, limit.
+        """
+        params = params or {}
+        page = 1 if not 'page' in params else params['page']
         try:
             results = self.gitea.requests_get_commits(
-                Repository.REPO_COMMITS % (self.owner.username, self.name)
+                endpoint = Repository.REPO_COMMITS % (self.owner.username, self.name),
+                params = params,
+                page = page
             )
         except ConflictException as err:
             logging.warning(err)
@@ -565,6 +572,8 @@ class Commit(GiteaApiObject):
         api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)
         BasicGiteaApiObject._add_readonly_property("inner_commit", commit_cache, api_object)
+        BasicGiteaApiObject._add_readonly_property("message", commit_cache['message'], api_object)
+        BasicGiteaApiObject._add_readonly_property("commit_date", Util.convert_time(commit_cache['committer']['date']), api_object)
         return api_object
 
 
@@ -821,7 +830,12 @@ class Gitea:
 
     def requests_get_commits(self, endpoint, page=1, params={}, requests=None):
         results = []
+        pages = params['pages'] if 'pages' in params else -1
+        page = params['page'] if 'page' in params else page
+        params.pop('page', None)
         page_endpoint = endpoint + f"?page={page}"
+        for k, v in params.items():
+            if v is not None: page_endpoint = page_endpoint + f"&{k}={v}"
         if not requests:
             request = self.requests.get(
                 self.__get_url(page_endpoint), headers=self.headers, params=params
@@ -831,9 +845,9 @@ class Gitea:
                 self.__get_url(page_endpoint), headers=self.headers, params=params
             )
         results += self.parse_result(request)
-        if request.headers.get("x-hasmore") == "true":
+        if request.headers.get("x-hasmore") == "true" and (pages == -1 or page <= pages):
             page += 1
-            results += self.requests_get_commits(endpoint, page)
+            results += self.requests_get_commits(endpoint, page, params)
         elif request.status_code not in [200, 201]:
             message = "Received status code: %s (%s)" % (
                 request.status_code,
