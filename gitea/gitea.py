@@ -4,7 +4,6 @@ from typing import List, Dict, Union
 
 import requests
 from frozendict import frozendict
-from httpcache import CachingHTTPAdapter
 
 from .apiobject import User, Organization, Repository, Team
 from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
@@ -20,7 +19,7 @@ class Gitea:
     CREATE_ORG = """/admin/users/%s/orgs"""  # <username>
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
-    def __init__(self, gitea_url: str, token_text: str, cached=False, log_level="INFO"):
+    def __init__(self, gitea_url: str, token_text: str, log_level="INFO"):
         """ Initializing Gitea-instance."""
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
@@ -30,9 +29,6 @@ class Gitea:
         }
         self.url = gitea_url
         self.requests = requests.Session()
-        if cached:
-            self.requests.mount("http://", CachingHTTPAdapter())
-            self.requests.mount("https://", CachingHTTPAdapter())
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
