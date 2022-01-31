@@ -253,8 +253,6 @@ class Repository(ApiObject):
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
-    REPO_CONTENTS = "/repos/{owner}/{repo}/contents"
-    REPO_CONTENT = """/repos/{owner}/{repo}/contents/{filepath}"""
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
 
     def __init__(self, gitea):
@@ -443,16 +441,15 @@ class Repository(ApiObject):
 
     def get_git_content(self: str = None, commit: "Commit" = None) -> List["Content"]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
-        url = Repository.REPO_CONTENTS.format(owner=self.owner.username, repo=self.name)
-        data = {"ref": "HEAD" if commit is None else commit.sha}
+        url = f"/repos/{self.owner.username}/{self.name}/contents"
+        data = {"ref": commit.sha} if commit else {}
         result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
     def get_file_content(self, content: "Content", commit: "Commit" = None) -> Union[str, List["Content"]]:
         """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
-        url = Repository.REPO_CONTENT.format(owner=self.owner.username,
-                                             repo=self.name, filepath=content.path)
-        data = {"ref": "HEAD" if commit is None else commit.sha}
+        url = f"/repos/{self.owner.username}/{self.name}/contents/{content.path}"
+        data = {"ref": commit.sha} if commit else {}
         if content.type == Content.FILE:
             return self.gitea.requests_get(url, data)["content"]
         else:
