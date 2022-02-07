@@ -189,7 +189,7 @@ class User(ApiObject):
 
     def get_teams(self) -> List['Team']:
         url = f"/user/teams"
-        results = self.gitea.requests_get(url, sudo=self)
+        results = self.gitea.requests_get_paginated(url, sudo=self)
         return [Team.parse_response(self.gitea, result) for result in results]
 
     def get_accessible_repos(self) -> List['Repository']:
