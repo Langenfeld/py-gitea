@@ -33,8 +33,8 @@ class Gitea:
         Args:
             gitea_url (str): The Gitea instance URL.
             token_text (str, None): The access token, by default None.
-            auth (str, None): The user credentials `username:password`,
-                by default None.
+            auth (tuple, None): The user credentials
+                `(username, password)`, by default None.
             verify (bool): If True, allow insecure server connections
                 when using SSL.
             log_level (str): The log level, by default `INFO`.
@@ -53,7 +53,7 @@ class Gitea:
         if token_text:
             self.headers["Authorization"] = "token " + token_text
         if auth:
-            self.requests.auth = tuple(auth.split(":"))
+            self.requests.auth = auth
 
         # Manage SSL certification verification
         self.requests.verify = verify
