@@ -19,16 +19,29 @@ class Gitea:
     CREATE_ORG = """/admin/users/%s/orgs"""  # <username>
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
-    def __init__(self, gitea_url: str, token_text: str, log_level="INFO"):
+    def __init__(
+            self,
+            gitea_url: str,
+            token_text=None,
+            auth=None,
+            log_level="INFO"
+        ):
         """ Initializing Gitea-instance."""
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.headers = {
-            "Authorization": "token " + token_text,
             "Content-type": "application/json",
         }
         self.url = gitea_url
         self.requests = requests.Session()
+
+        # Manage authentification
+        if not token_text and not auth:
+            raise ValueError("Please provide auth or token_text, but not both")
+        if token_text:
+            self.headers["Authorization"] = "token " + token_text
+        if auth:
+            self.requests.auth = tuple(auth.split(":"))
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
