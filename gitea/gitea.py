@@ -28,7 +28,17 @@ class Gitea:
             verify=True,
             log_level="INFO"
         ):
-        """ Initializing Gitea-instance."""
+        """ Initializing Gitea-instance
+
+        Args:
+            gitea_url (str): The Gitea instance URL.
+            token_text (str, None): The access token, by default None.
+            auth (str, None): The user credentials `username:password`,
+                by default None.
+            verify (bool): If True, allow insecure server connections
+                when using SSL.
+            log_level (str): The log level, by default `INFO`.
+        """
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.headers = {
