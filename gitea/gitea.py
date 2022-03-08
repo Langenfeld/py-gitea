@@ -1,9 +1,10 @@
-import json
 import logging
+import json
 from typing import List, Dict, Union
 
-import requests
 from frozendict import frozendict
+import requests
+import urllib3
 
 from .apiobject import User, Organization, Repository, Team
 from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
@@ -24,6 +25,7 @@ class Gitea:
             gitea_url: str,
             token_text=None,
             auth=None,
+            verify=True,
             log_level="INFO"
         ):
         """ Initializing Gitea-instance."""
@@ -42,6 +44,12 @@ class Gitea:
             self.headers["Authorization"] = "token " + token_text
         if auth:
             self.requests.auth = tuple(auth.split(":"))
+
+        # Manage SSL certification verification
+        self.requests.verify = verify
+        if not verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
