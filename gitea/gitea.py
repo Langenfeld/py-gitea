@@ -228,6 +228,7 @@ class Gitea:
             license: str = None,
             readme: str = "Default",
             issue_labels: str = None,
+            default_branch="master",
     ):
         """ Create a Repository.
         Throws:
@@ -249,6 +250,7 @@ class Gitea:
                 "license": license,
                 "issue_labels": issue_labels,
                 "readme": readme,
+                "default_branch": default_branch,
             },
         )
         if "id" in result:
