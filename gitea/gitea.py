@@ -300,6 +300,8 @@ class Gitea:
             name: str,
             description: str = "",
             permission: str = "read",
+            can_create_org_repo: bool = False,
+            includes_all_repositories: bool = False,
             units=(
                     "repo.code",
                     "repo.issues",
@@ -324,6 +326,8 @@ class Gitea:
                 "name": name,
                 "description": description,
                 "permission": permission,
+                "can_create_org_repo": can_create_org_repo,
+                "includes_all_repositories": includes_all_repositories,
                 "units": units,
             },
         )
