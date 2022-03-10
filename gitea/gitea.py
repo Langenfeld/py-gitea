@@ -179,6 +179,7 @@ class Gitea:
             user_name: str,
             email: str,
             password: str,
+            full_name: str = None,
             login_name: str = None,
             change_pw=True,
             send_notify=True,
@@ -191,9 +192,12 @@ class Gitea:
         """
         if not login_name:
             login_name = user_name
+        if not full_name:
+            full_name = user_name
         request_data = {
             "source_id": source_id,
             "login_name": login_name,
+            "full_name": full_name,
             "username": user_name,
             "email": email,
             "password": password,
