@@ -234,11 +234,15 @@ class Gitea:
             issue_labels: str = None,
             default_branch="master",
     ):
-        """ Create a Repository.
-        Throws:
-            AlreadyExistsException, if Repository exists already.
-            Exception, if something else went wrong.
+        """ Create a Repository as the administrator
 
+        Throws:
+            AlreadyExistsException: If the Repository exists already.
+            Exception: If something else went wrong.
+
+        Note:
+            Non-admin users can not use this method. Please use instead
+            `gitea.User.create_repo` or `gitea.Organization.create_repo`.
         """
         # although this only says user in the api, this also works for
         # organizations

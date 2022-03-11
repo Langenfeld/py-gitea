@@ -48,6 +48,45 @@ class Organization(ApiObject):
         )
         self.dirty_fields = {}
 
+    def create_repo(
+            self,
+            repoName: str,
+            description: str = "",
+            private: bool = False,
+            autoInit=True,
+            gitignores: str = None,
+            license: str = None,
+            readme: str = "Default",
+            issue_labels: str = None,
+            default_branch="master",
+    ):
+        """Create an organization Repository
+
+        Throws:
+            AlreadyExistsException: If the Repository exists already.
+            Exception: If something else went wrong.
+        """
+        result = self.gitea.requests_post(
+            f"/orgs/{self.name}/repos",
+            data={
+                "name": repoName,
+                "description": description,
+                "private": private,
+                "auto_init": autoInit,
+                "gitignores": gitignores,
+                "license": license,
+                "issue_labels": issue_labels,
+                "readme": readme,
+                "default_branch": default_branch,
+            },
+        )
+        if "id" in result:
+            self.gitea.logger.info("Successfully created Repository %s " % result["name"])
+        else:
+            self.gitea.logger.error(result["message"])
+            raise Exception("Repository not created... (gitea: %s)" % result["message"])
+        return Repository.parse_response(self, result)
+
     def get_repositories(self) -> List["Repository"]:
         results = self.gitea.requests_get_paginated(
             Organization.ORG_REPOS_REQUEST % self.username
@@ -174,6 +213,45 @@ class User(ApiObject):
         args = {"username": self.username}
         self.gitea.requests_patch(User.ADMIN_EDIT_USER.format(**args), data=values)
         self.dirty_fields = {}
+
+    def create_repo(
+            self,
+            repoName: str,
+            description: str = "",
+            private: bool = False,
+            autoInit=True,
+            gitignores: str = None,
+            license: str = None,
+            readme: str = "Default",
+            issue_labels: str = None,
+            default_branch="master",
+    ):
+        """Create a user Repository
+
+        Throws:
+            AlreadyExistsException: If the Repository exists already.
+            Exception: If something else went wrong.
+        """
+        result = self.gitea.requests_post(
+            "/user/repos",
+            data={
+                "name": repoName,
+                "description": description,
+                "private": private,
+                "auto_init": autoInit,
+                "gitignores": gitignores,
+                "license": license,
+                "issue_labels": issue_labels,
+                "readme": readme,
+                "default_branch": default_branch,
+            },
+        )
+        if "id" in result:
+            self.gitea.logger.info("Successfully created Repository %s " % result["name"])
+        else:
+            self.gitea.logger.error(result["message"])
+            raise Exception("Repository not created... (gitea: %s)" % result["message"])
+        return Repository.parse_response(self, result)
 
     def get_repositories(self) -> List["Repository"]:
         """ Get all Repositories owned by this User."""
