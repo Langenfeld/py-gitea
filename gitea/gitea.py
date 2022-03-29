@@ -1,9 +1,10 @@
-import json
 import logging
+import json
 from typing import List, Dict, Union
 
-import requests
 from frozendict import frozendict
+import requests
+import urllib3
 
 from .apiobject import User, Organization, Repository, Team
 from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
@@ -19,16 +20,46 @@ class Gitea:
     CREATE_ORG = """/admin/users/%s/orgs"""  # <username>
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
-    def __init__(self, gitea_url: str, token_text: str, log_level="INFO"):
-        """ Initializing Gitea-instance."""
+    def __init__(
+            self,
+            gitea_url: str,
+            token_text=None,
+            auth=None,
+            verify=True,
+            log_level="INFO"
+        ):
+        """ Initializing Gitea-instance
+
+        Args:
+            gitea_url (str): The Gitea instance URL.
+            token_text (str, None): The access token, by default None.
+            auth (tuple, None): The user credentials
+                `(username, password)`, by default None.
+            verify (bool): If True, allow insecure server connections
+                when using SSL.
+            log_level (str): The log level, by default `INFO`.
+        """
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.headers = {
-            "Authorization": "token " + token_text,
             "Content-type": "application/json",
         }
         self.url = gitea_url
         self.requests = requests.Session()
+
+        # Manage authentification
+        if not token_text and not auth:
+            raise ValueError("Please provide auth or token_text, but not both")
+        if token_text:
+            self.headers["Authorization"] = "token " + token_text
+        if auth:
+            self.requests.auth = auth
+
+        # Manage SSL certification verification
+        self.requests.verify = verify
+        if not verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
@@ -148,6 +179,7 @@ class Gitea:
             user_name: str,
             email: str,
             password: str,
+            full_name: str = None,
             login_name: str = None,
             change_pw=True,
             send_notify=True,
@@ -160,9 +192,12 @@ class Gitea:
         """
         if not login_name:
             login_name = user_name
+        if not full_name:
+            full_name = user_name
         request_data = {
             "source_id": source_id,
             "login_name": login_name,
+            "full_name": full_name,
             "username": user_name,
             "email": email,
             "password": password,
@@ -197,12 +232,17 @@ class Gitea:
             license: str = None,
             readme: str = "Default",
             issue_labels: str = None,
+            default_branch="master",
     ):
-        """ Create a Repository.
-        Throws:
-            AlreadyExistsException, if Repository exists already.
-            Exception, if something else went wrong.
+        """ Create a Repository as the administrator
 
+        Throws:
+            AlreadyExistsException: If the Repository exists already.
+            Exception: If something else went wrong.
+
+        Note:
+            Non-admin users can not use this method. Please use instead
+            `gitea.User.create_repo` or `gitea.Organization.create_repo`.
         """
         # although this only says user in the api, this also works for
         # organizations
@@ -218,6 +258,7 @@ class Gitea:
                 "license": license,
                 "issue_labels": issue_labels,
                 "readme": readme,
+                "default_branch": default_branch,
             },
         )
         if "id" in result:
@@ -267,6 +308,8 @@ class Gitea:
             name: str,
             description: str = "",
             permission: str = "read",
+            can_create_org_repo: bool = False,
+            includes_all_repositories: bool = False,
             units=(
                     "repo.code",
                     "repo.issues",
@@ -291,6 +334,8 @@ class Gitea:
                 "name": name,
                 "description": description,
                 "permission": permission,
+                "can_create_org_repo": can_create_org_repo,
+                "includes_all_repositories": includes_all_repositories,
                 "units": units,
             },
         )
