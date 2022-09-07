@@ -79,8 +79,6 @@ class Gitea:
         if sudo:
             combined_params["sudo"] = sudo.username
         request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=combined_params)
-        if request.status_code == 204:
-            return None
         if request.status_code not in [200, 201]:
             message = f"Received status code: {request.status_code} ({request.url})"
             if request.status_code in [404]:
@@ -100,10 +98,10 @@ class Gitea:
         while True:
             combined_params[page_key] = page
             result = self.requests_get(endpoint, combined_params, sudo)
+            if not result:
+                return aggregated_result
             aggregated_result.extend(result)
             page += 1
-            if len(result) == 0:
-                return aggregated_result
 
     def requests_put(self, endpoint: str):
         request = self.requests.put(self.__get_url(endpoint), headers=self.headers)
