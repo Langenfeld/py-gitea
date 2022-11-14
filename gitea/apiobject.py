@@ -256,7 +256,7 @@ class User(ApiObject):
     def get_repositories(self) -> List["Repository"]:
         """ Get all Repositories owned by this User."""
         url = f"/users/{self.username}/repos"
-        results = self.gitea.requests_get(url)
+        results = self.gitea.requests_get_paginated(url)
         return [Repository.parse_response(self.gitea, result) for result in results]
 
     def get_orgs(self) -> List[Organization]:
