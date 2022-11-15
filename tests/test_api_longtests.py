@@ -32,11 +32,11 @@ def test_list_repos(instance):
     org = instance.create_org(user, test_org, "some Description for longtests")
     repos = org.get_repositories()
     assert len(repos) == 0
-    # test a number of repository listings larger than the pagination number (default 30)
-    for i in range(1, 34):
+    # test a number of repository listings larger than the pagination number (default 50)
+    for i in range(1, 54):
         instance.create_repo(org, test_repo + "_" + str(i), str(i))
     repos = org.get_repositories()
-    assert len(repos) >= 33
+    assert len(repos) >= 53
 
 
 def test_list_issue(instance):
