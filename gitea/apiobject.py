@@ -34,8 +34,10 @@ class Organization(ApiObject):
     @classmethod
     def parse_response(cls, gitea, result) -> 'Organization':
         api_object = super().parse_response(gitea, result)
-        # add "name" field to make this behave similar to users
-        Organization._add_read_property("name", result["username"], api_object)
+        # add "name" field to make this behave similar to users for gitea < 1.18
+        # also necessary for repository-owner when org is repo owner
+        if not hasattr(api_object, "name"):
+            Organization._add_read_property("name", result["username"], api_object)
         return api_object
 
     _patchable_fields = {"description", "full_name", "location", "visibility", "website"}
