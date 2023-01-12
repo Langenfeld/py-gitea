@@ -520,14 +520,14 @@ class Repository(ApiObject):
         # TODO: make sure this instance is either updated or discarded
 
     def get_git_content(self: str = None, commit: "Commit" = None) -> List["Content"]:
-        """https://git.sopranium.de/api/swagger#/repository/repoGetContentsList"""
+        """https://try.gitea.io/api/swagger#/repository/repoGetContentsList"""
         url = f"/repos/{self.owner.username}/{self.name}/contents"
         data = {"ref": commit.sha} if commit else {}
         result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
     def get_file_content(self, content: "Content", commit: "Commit" = None) -> Union[str, List["Content"]]:
-        """https://git.sopranium.de/api/swagger#/repository/repoGetContents"""
+        """https://try.gitea.io/api/swagger#/repository/repoGetContents"""
         url = f"/repos/{self.owner.username}/{self.name}/contents/{content.path}"
         data = {"ref": commit.sha} if commit else {}
         if content.type == Content.FILE:
