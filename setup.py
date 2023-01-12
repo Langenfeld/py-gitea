@@ -21,8 +21,15 @@ setup_args = dict(
 install_requires = [
     'requests',
     'frozendict',
-    'pytest'
 ]
 
+extras_require = {
+    'test': ['pytest']
+}
+
 if __name__ == '__main__':
-    setup(**setup_args, install_requires=install_requires)
+    setup(
+        **setup_args,
+        install_requires=install_requires,
+        extras_require=extras_require
+    )
