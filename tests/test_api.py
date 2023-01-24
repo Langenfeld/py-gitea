@@ -1,3 +1,5 @@
+import base64
+
 import pytest
 import uuid
 
@@ -137,25 +139,13 @@ def test_list_files_and_content(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
     content = repo.get_git_content()
+    # Readme file should exist in any new repo
+    #  content is the description given during creation
     readmes = [c for c in content if c.name == "README.md"]
     assert len(readmes) > 0
     readme_content = repo.get_file_content(readmes[0])
     assert len(readme_content) > 0
-
-# TODO: make this testable
-"""
-def test_list_files_and_content_testorg(instance):
-    org = Organization.request(instance, "testtest")
-    repo = org.get_repository("test")
-    content = repo.get_git_content()
-    readmes = [c for c in content if c.name == "filefolder"]
-    assert len(readmes) > 0
-    readme_content = repo.get_file_content(readmes[0])
-    assert len(readme_content) > 0
-    lower_readme = [c for c in readme_content if c.name == "testfile.md"]
-    lower_r_content = repo.get_file_content(lower_readme[0])
-    assert len(lower_r_content) > 0
-"""
+    assert "descr" in str(base64.b64decode(readme_content))
 
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
