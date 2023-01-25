@@ -535,18 +535,20 @@ class Repository(ApiObject):
         else:
             return [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
 
-    def create_file(self, file_path: str, data: "data" = dict):
+    def create_file(self, file_path: str, content: str, data: dict = None):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
+        if not data:
+            data = {}
         url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
-        if "content" not in data:
-            raise Exception("No Data to upload is supplied. Please give 'content' Field with data")
+        data.update({"content": content})
         return self.gitea.requests_post(url, data)
 
-    def change_file(self, file_path: str, data: "data" = dict):
+    def change_file(self, file_path: str, file_sha: str, content: str, data: dict = None):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
+        if not data:
+            data = {}
         url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
-        if "content" not in data:
-            raise Exception("No Data to upload is supplied. Please give 'content' Field with data")
+        data.update({"sha": file_sha, "data": content})
         return self.gitea.requests_put(url, data)
 
     def delete(self):

@@ -153,7 +153,7 @@ def test_create_file(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
     repo.create_file("testfile.md",
-        {"content": TESTFILE_CONENTE_B64.decode("ascii")})
+        content = TESTFILE_CONENTE_B64.decode("ascii"))
     # test if putting was successful
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile.md"]
@@ -171,8 +171,8 @@ def test_change_file(instance):
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile.md"]
     # change
-    repo.change_file("testfile.md",
-        {"content": TESTFILE_CONENTE_B64.decode("ascii"), "sha": readmes[0].sha})
+    repo.change_file("testfile.md", readmes[0].sha,
+                     content = TESTFILE_CONENTE_B64.decode("ascii"))
     # test if putting was successful
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile.md"]
