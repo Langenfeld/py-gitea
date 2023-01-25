@@ -548,7 +548,7 @@ class Repository(ApiObject):
         if not data:
             data = {}
         url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
-        data.update({"sha": file_sha, "data": content})
+        data.update({"sha": file_sha, "content": content})
         return self.gitea.requests_put(url, data)
 
     def delete(self):
