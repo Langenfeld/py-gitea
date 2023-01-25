@@ -535,12 +535,19 @@ class Repository(ApiObject):
         else:
             return [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
 
-    def put_file_content(self, file_path: str, data: "data" = dict):
+    def create_file(self, file_path: str, data: "data" = dict):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
         url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
         if "content" not in data:
             raise Exception("No Data to upload is supplied. Please give 'content' Field with data")
         return self.gitea.requests_post(url, data)
+
+    def change_file(self, file_path: str, data: "data" = dict):
+        """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
+        url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
+        if "content" not in data:
+            raise Exception("No Data to upload is supplied. Please give 'content' Field with data")
+        return self.gitea.requests_put(url, data)
 
     def delete(self):
         self.gitea.requests_delete(
@@ -738,7 +745,6 @@ class Issue(ApiObject):
 
 class Team(ApiObject):
     API_OBJECT = """/teams/{id}"""  # <id>
-    ADD_USER = """/teams/%s/members/%s"""  # <id, username to add>
     ADD_REPO = """/teams/%s/repos/%s/%s"""  # <id, org, repo>
     TEAM_DELETE = """/teams/%s"""  # <id>
     GET_MEMBERS = """/teams/%s/members"""  # <id>
@@ -765,7 +771,9 @@ class Team(ApiObject):
     _patchable_fields = {"description", "name", "permission", "units"}
 
     def add_user(self, user: User):
-        self.gitea.requests_put(Team.ADD_USER % (self.id, user.login))
+        """https://try.gitea.io/api/swagger#/organization/orgAddTeamMember"""
+        url = f"/teams/{self.id}/members/{user.login}"
+        self.gitea.requests_put(url)
 
     def add_repo(self, org: Organization, repo: Repository):
         self.gitea.requests_put(Team.ADD_REPO % (self.id, org, repo.name))
