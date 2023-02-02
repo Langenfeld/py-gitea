@@ -784,11 +784,25 @@ class Team(ApiObject):
         "organization": lambda gitea, o: Organization.parse_response(gitea, o)
     }
 
+    _patchable_fields = {
+        "can_create_org_repo",
+        "description",
+        "includes_all_repositories",
+        "name",
+        "permission",
+        "units",
+        "units_map",
+    }
+
     @classmethod
-    def request(cls, gitea: 'Gitea', organization: str, team: str):
+    def request(cls, gitea: "Gitea", id: int):
         return cls._request(gitea, {"id": id})
 
-    _patchable_fields = {"description", "name", "permission", "units"}
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"id": self.id}
+        self.gitea.requests_patch(self.API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
 
     def add_user(self, user: User):
         """https://try.gitea.io/api/swagger#/organization/orgAddTeamMember"""

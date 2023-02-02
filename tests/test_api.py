@@ -214,6 +214,30 @@ def test_create_team(instance):
     assert team.description == "descr"
     assert team.organization == org
 
+def test_patch_team(instance):
+    fields = {
+        "can_create_org_repo": True,
+        "description": "patched description",
+        "includes_all_repositories": True,
+        "name": "newname",
+        "permission": "write",
+    }
+    org = Organization.request(instance, test_org)
+    team = instance.create_team(org, test_team[:1], "descr")
+    for field, value in fields.items():
+        setattr(team, field, value)
+    team.commit()
+    team = Team.request(instance, team.id)
+    for field, value in fields.items():
+        assert getattr(team, field) == value
+
+
+def test_request_team(instance):
+    org = Organization.request(instance, test_org)
+    team = org.get_team(test_team)
+    team2 = Team.request(instance, team.id)
+    assert team.name == team2.name
+
 def test_create_milestone(instance):
         org = Organization.request(instance, test_org)
         repo = org.get_repository(test_repo)
