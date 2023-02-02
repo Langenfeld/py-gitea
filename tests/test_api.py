@@ -127,6 +127,24 @@ def test_create_repo_orgowned(instance):
     assert repo.name == test_repo
     assert not repo.private
 
+
+def test_patch_repo(instance):
+    fields = {
+        "allow_rebase": False,
+        "description": "new description",
+        "has_projects": True,
+        "private": True,
+    }
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    for field, value in fields.items():
+        setattr(repo, field, value)
+    repo.commit()
+    repo = org.get_repository(test_repo)
+    for field, value in fields.items():
+        assert getattr(repo, field) == value
+
+
 def test_list_branches(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)

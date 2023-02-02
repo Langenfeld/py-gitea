@@ -357,21 +357,39 @@ class Repository(ApiObject):
         return cls._request(gitea, {"owner": owner, "name": name})
 
     _patchable_fields = {
+        "allow_manual_merge",
         "allow_merge_commits",
         "allow_rebase",
         "allow_rebase_explicit",
+        "allow_rebase_update",
         "allow_squash_merge",
         "archived",
+        "autodetect_manual_merge",
         "default_branch",
+        "default_delete_branch_after_merge",
+        "default_merge_style",
         "description",
+        "enable_prune",
+        "external_tracker",
+        "external_wiki",
         "has_issues",
+        "has_projects",
         "has_pull_requests",
         "has_wiki",
         "ignore_whitespace_conflicts",
+        "internal_tracker",
+        "mirror_interval",
         "name",
         "private",
+        "template",
         "website",
     }
+
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"owner": self.owner.username, "name": self.name}
+        self.gitea.requests_patch(self.API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
 
     def get_branches(self) -> List['Branch']:
         """Get all the Branches of this Repository."""
