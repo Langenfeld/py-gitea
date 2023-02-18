@@ -4,18 +4,18 @@ with open('README.md') as readme_file:
     README = readme_file.read()
 
 setup_args = dict(
-    name='py-gitea',
-    version='0.2.6',
-    description='A python wrapper for the Gitea API',
+    name='py-allspice',
+    version='{{VERSION_PLACEHOLDER}}',
+    description='A python wrapper for the AllSpice Hub API',
     long_description_content_type="text/markdown",
     long_description=README,
     license='MIT',
     packages=find_packages(),
-    author='Vincent Langenfeld ',
-    author_email='langenfv@tf.uni-freiburg.de',
-    keywords=['Gitea','api','wrapper'],
+    author='AllSpice, Inc.',
+    author_email='maintainers@allspice.io',
+    keywords=['AllSpice','AllSpice Hub','api','wrapper'],
     url='https://github.com/Langenfeld/py-gitea',
-    download_url='https://pypi.org/project/py-gitea/'
+    download_url='https://github.com/AllSpiceIO/py-allspice'
 )
 
 install_requires = [
