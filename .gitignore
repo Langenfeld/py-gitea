@@ -1,11 +1,9 @@
-# pyenv
-.python-version
+
 
 # dotenv
 .env
 
 # virtualenv
-.venv
 venv/
 ENV/
 # IDE settings
