@@ -3,7 +3,7 @@ import base64
 import pytest
 import uuid
 
-from gitea import Gitea, User, Organization, Team, Repository, Issue, Milestone
+from gitea import Gitea, User, Organization, Team, Repository, Issue, Milestone, MigrationServices
 from gitea import NotFoundException, AlreadyExistsException
 
 # put a ".token" file into your directory containg only the token for gitea
@@ -386,3 +386,13 @@ def test_delete_user(instance):
     user.delete()
     with pytest.raises(NotFoundException) as e:
         User.request(instance, user_name)
+
+def test_migrate_repo(instance):
+    service = Repository(instance)
+    repo = service.migrate_repo(MigrationServices.GITEA, "https://gitea.com/gitea/awesome-gitea.git", test_repo, "user owned repo")
+    assert repo.name == test_repo
+    assert repo.description == "user owned repo"
+    assert not repo.private
+    assert repo.owner.username == "test"
+    repo = Repository.request(instance, "test", test_repo)
+    repo.delete()

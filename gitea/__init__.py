@@ -15,7 +15,8 @@ from .apiobject import (
     Milestone,
     Commit,
     Comment,
-    Content
+    Content,
+    MigrationServices
 )
 
 __all__ = [
