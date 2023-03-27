@@ -590,12 +590,12 @@ class Repository(ApiObject):
             mirror_interval: str = None,
             lfs: bool = False,
             lfs_endpoint: str = "",
-            wiki: bool = True,
+            wiki: bool = False,
             labels: bool = False,
             issues: bool = False,
-            pull_requests: bool = True,
-            releases: bool = True,
-            milestones: bool = True,
+            pull_requests: bool = False,
+            releases: bool = False,
+            milestones: bool = False,
             repo_owner: str = None
     ):
         """ Migrate a Repository from another service.
