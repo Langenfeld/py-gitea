@@ -921,5 +921,5 @@ class MigrationServices:
     GITLAB = "4"
     GOGS = "5"
     ONEDEV = "6"
-    BITBUCKET = "7"
+    GITBUCKET = "7"
     CODEBASE = "8"
