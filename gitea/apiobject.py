@@ -605,7 +605,7 @@ class Repository(ApiObject):
             Exception: If something else went wrong.
         """
         result = self.gitea.requests_post(
-            Repository.REPO_MIGRATE,
+            self.REPO_MIGRATE,
             data={
                 "auth_password": auth_password,
                 "auth_token": auth_token,
