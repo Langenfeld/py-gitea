@@ -426,11 +426,12 @@ class Repository(ApiObject):
         """Get all Issues of this Repository (open and closed)"""
         return self.get_issues_state(Issue.OPENED) + self.get_issues_state(Issue.CLOSED)
 
-    def get_commits(self) -> List["Commit"]:
+    def get_commits(self, page_limit: int = 0) -> List["Commit"]:
         """Get all the Commits of this Repository."""
         try:
             results = self.gitea.requests_get_paginated(
-                Repository.REPO_COMMITS % (self.owner.username, self.name)
+                Repository.REPO_COMMITS % (self.owner.username, self.name),
+                page_limit= page_limit
             )
         except ConflictException as err:
             logging.warning(err)

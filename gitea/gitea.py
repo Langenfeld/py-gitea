@@ -90,7 +90,12 @@ class Gitea:
         return self.parse_result(request)
 
     def requests_get_paginated(
-        self, endpoint: str, params=frozendict(), sudo=None, page_key: str = "page"
+        self,
+        endpoint: str,
+        params=frozendict(),
+        sudo=None,
+        page_key: str = "page",
+        page_limit: int = 0,
     ):
         page = 1
         combined_params = {}
@@ -103,6 +108,8 @@ class Gitea:
                 return aggregated_result
             aggregated_result.extend(result)
             page += 1
+            if page_limit and page > page_limit:
+                return aggregated_result
 
     def requests_put(self, endpoint: str, data: dict = None):
         if not data:
