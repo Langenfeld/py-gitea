@@ -334,6 +334,7 @@ class Branch(ReadonlyApiObject):
 
 class Repository(ApiObject):
     API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
+    REPO_MIGRATE = """/repos/migrate"""
     REPO_IS_COLLABORATOR = (
         """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     )
@@ -611,6 +612,69 @@ class Repository(ApiObject):
             Repository.REPO_DELETE % (self.owner.username, self.name)
         )
         self.deleted = True
+
+    def migrate_repo(
+        self,
+        service: str,
+        clone_addr: str,
+        repo_name: str,
+        description: str = "",
+        private: bool = False,
+        auth_token: str = None,
+        auth_username: str = None,
+        auth_password: str = None,
+        mirror: bool = False,
+        mirror_interval: str = None,
+        lfs: bool = False,
+        lfs_endpoint: str = "",
+        wiki: bool = False,
+        labels: bool = False,
+        issues: bool = False,
+        pull_requests: bool = False,
+        releases: bool = False,
+        milestones: bool = False,
+        repo_owner: str = None,
+    ):
+        """Migrate a Repository from another service.
+
+        Throws:
+            AlreadyExistsException: If the Repository exists already.
+            Exception: If something else went wrong.
+        """
+        result = self.gitea.requests_post(
+            self.REPO_MIGRATE,
+            data={
+                "auth_password": auth_password,
+                "auth_token": auth_token,
+                "auth_username": auth_username,
+                "clone_addr": clone_addr,
+                "description": description,
+                "issues": issues,
+                "labels": labels,
+                "lfs": lfs,
+                "lfs_endpoint": lfs_endpoint,
+                "milestones": milestones,
+                "mirror": mirror,
+                "mirror_interval": mirror_interval,
+                "private": private,
+                "pull_requests": pull_requests,
+                "releases": releases,
+                "repo_name": repo_name,
+                "repo_owner": repo_owner,
+                "service": service,
+                "wiki": wiki,
+            },
+        )
+        if "id" in result:
+            self.gitea.logger.info(
+                "Successfully created Job to Migrate Repository %s " % result["name"]
+            )
+        else:
+            self.gitea.logger.error(result["message"])
+            raise Exception(
+                "Repository not Migrated... (gitea: %s)" % result["message"]
+            )
+        return Repository.parse_response(self, result)
 
 
 class Milestone(ApiObject):
@@ -904,3 +968,14 @@ class Util:
             return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
         except ValueError:
             return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S")
+
+
+class MigrationServices:
+    GIT = "1"
+    GITHUB = "2"
+    GITEA = "3"
+    GITLAB = "4"
+    GOGS = "5"
+    ONEDEV = "6"
+    GITBUCKET = "7"
+    CODEBASE = "8"
