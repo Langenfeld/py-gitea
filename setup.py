@@ -1,35 +1,31 @@
 from setuptools import setup, find_packages
 
-with open('README.md') as readme_file:
+with open("README.md") as readme_file:
     README = readme_file.read()
 
 setup_args = dict(
-    name='py-gitea',
-    version='0.2.6',
-    description='A python wrapper for the Gitea API',
+    name="py-gitea",
+    version="0.2.6",
+    description="A python wrapper for the Gitea API",
     long_description_content_type="text/markdown",
     long_description=README,
-    license='MIT',
+    license="MIT",
     packages=find_packages(),
-    author='Vincent Langenfeld ',
-    author_email='langenfv@tf.uni-freiburg.de',
-    keywords=['Gitea','api','wrapper'],
-    url='https://github.com/Langenfeld/py-gitea',
-    download_url='https://pypi.org/project/py-gitea/'
+    author="Vincent Langenfeld ",
+    author_email="langenfv@tf.uni-freiburg.de",
+    keywords=["Gitea", "api", "wrapper"],
+    url="https://github.com/Langenfeld/py-gitea",
+    download_url="https://pypi.org/project/py-gitea/",
 )
 
 install_requires = [
-    'requests',
-    'frozendict',
+    "requests",
+    "frozendict",
 ]
 
-extras_require = {
-    'test': ['pytest']
-}
+extras_require = {"test": ["pytest"]}
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setup(
-        **setup_args,
-        install_requires=install_requires,
-        extras_require=extras_require
+        **setup_args, install_requires=install_requires, extras_require=extras_require
     )

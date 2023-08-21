@@ -1,8 +1,11 @@
-from .exceptions import ObjectIsInvalid, MissiongEqualyImplementation, RawRequestEndpointMissing
+from .exceptions import (
+    ObjectIsInvalid,
+    MissiongEqualyImplementation,
+    RawRequestEndpointMissing,
+)
 
 
 class ReadonlyApiObject:
-
     def __init__(self, gitea):
         self.gitea = gitea
         self.deleted = False  # set if .delete was called, so that an exception is risen
@@ -35,7 +38,7 @@ class ReadonlyApiObject:
 
     @classmethod
     def _get_gitea_api_object(cls, gitea, args):
-        """Retrieving an object always as GET_API_OBJECT """
+        """Retrieving an object always as GET_API_OBJECT"""
         return gitea.requests_get(cls.API_OBJECT.format(**args))
 
     @classmethod
@@ -61,8 +64,7 @@ class ReadonlyApiObject:
     def _add_read_property(cls, name, value, api_object):
         if not hasattr(api_object, name):
             setattr(api_object, "_" + name, value)
-            prop = property(
-                (lambda n: lambda self: self._get_var(n))(name))
+            prop = property((lambda n: lambda self: self._get_var(n))(name))
             setattr(cls, name, prop)
         else:
             raise AttributeError(f"Attribute {name} already exists on api object.")
@@ -107,7 +109,8 @@ class ApiObject(ReadonlyApiObject):
             setattr(api_object, "_" + name, value)
         prop = property(
             (lambda n: lambda self: self._get_var(n))(name),
-            (lambda n: lambda self, v: self.__set_var(n, v))(name))
+            (lambda n: lambda self, v: self.__set_var(n, v))(name),
+        )
         setattr(cls, name, prop)
 
     def __set_var(self, name, i):

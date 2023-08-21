@@ -15,21 +15,21 @@ from .apiobject import (
     Milestone,
     Commit,
     Comment,
-    Content
+    Content,
 )
 
 __all__ = [
-    'Gitea',
-    'User',
-    'Organization',
-    'Team',
-    'Repository',
-    'Branch',
-    'NotFoundException',
-    'AlreadyExistsException',
-    'Issue',
-    'Milestone',
-    'Commit',
-    'Comment',
-    'Content'
+    "Gitea",
+    "User",
+    "Organization",
+    "Team",
+    "Repository",
+    "Branch",
+    "NotFoundException",
+    "AlreadyExistsException",
+    "Issue",
+    "Milestone",
+    "Commit",
+    "Comment",
+    "Content",
 ]

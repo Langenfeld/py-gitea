@@ -11,7 +11,8 @@ from .exceptions import NotFoundException, ConflictException, AlreadyExistsExcep
 
 
 class Gitea:
-    """ Object to establish a session with Gitea. """
+    """Object to establish a session with Gitea."""
+
     ADMIN_CREATE_USER = """/admin/users"""
     GET_USERS_ADMIN = """/admin/users"""
     ADMIN_REPO_CREATE = """/admin/users/%s/repos"""  # <ownername>
@@ -21,14 +22,9 @@ class Gitea:
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
     def __init__(
-            self,
-            gitea_url: str,
-            token_text=None,
-            auth=None,
-            verify=True,
-            log_level="INFO"
-        ):
-        """ Initializing Gitea-instance
+        self, gitea_url: str, token_text=None, auth=None, verify=True, log_level="INFO"
+    ):
+        """Initializing Gitea-instance
 
         Args:
             gitea_url (str): The Gitea instance URL.
@@ -60,7 +56,6 @@ class Gitea:
         if not verify:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
     def __get_url(self, endpoint):
         url = self.url + "/api/v1" + endpoint
         self.logger.debug("Url: %s" % url)
@@ -68,7 +63,7 @@ class Gitea:
 
     @staticmethod
     def parse_result(result) -> Dict:
-        """ Parses the result-JSON to a dict. """
+        """Parses the result-JSON to a dict."""
         if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
@@ -78,19 +73,25 @@ class Gitea:
         combined_params.update(params)
         if sudo:
             combined_params["sudo"] = sudo.username
-        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=combined_params)
+        request = self.requests.get(
+            self.__get_url(endpoint), headers=self.headers, params=combined_params
+        )
         if request.status_code not in [200, 201]:
             message = f"Received status code: {request.status_code} ({request.url})"
             if request.status_code in [404]:
                 raise NotFoundException(message)
             if request.status_code in [403]:
-                raise Exception(f"Unauthorized: {request.url} - Check your permissions and try again! ({message})")
+                raise Exception(
+                    f"Unauthorized: {request.url} - Check your permissions and try again! ({message})"
+                )
             if request.status_code in [409]:
                 raise ConflictException(message)
             raise Exception(message)
         return self.parse_result(request)
 
-    def requests_get_paginated(self, endpoint: str, params=frozendict(), sudo=None, page_key: str = "page"):
+    def requests_get_paginated(
+        self, endpoint: str, params=frozendict(), sudo=None, page_key: str = "page"
+    ):
         page = 1
         combined_params = {}
         combined_params.update(params)
@@ -106,7 +107,9 @@ class Gitea:
     def requests_put(self, endpoint: str, data: dict = None):
         if not data:
             data = {}
-        request = self.requests.put(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.put(
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
         if request.status_code not in [200, 204]:
             message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
             self.logger.error(message)
@@ -120,21 +123,34 @@ class Gitea:
             raise Exception(message)
 
     def requests_post(self, endpoint: str, data: dict):
-        request = self.requests.post(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.post(
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
         if request.status_code not in [200, 201, 202]:
-            if ("already exists" in request.text or "e-mail already in use" in request.text):
+            if (
+                "already exists" in request.text
+                or "e-mail already in use" in request.text
+            ):
                 self.logger.warning(request.text)
                 raise AlreadyExistsException()
-            self.logger.error(f"Received status code: {request.status_code} ({request.url})")
+            self.logger.error(
+                f"Received status code: {request.status_code} ({request.url})"
+            )
             self.logger.error(f"With info: {data} ({self.headers})")
             self.logger.error(f"Answer: {request.text}")
-            raise Exception(f"Received status code: {request.status_code} ({request.url}), {request.text}")
+            raise Exception(
+                f"Received status code: {request.status_code} ({request.url}), {request.text}"
+            )
         return self.parse_result(request)
 
     def requests_patch(self, endpoint: str, data: dict):
-        request = self.requests.patch(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.patch(
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
         if request.status_code not in [200, 201]:
-            error_message = f"Received status code: {request.status_code} ({request.url}) {data}"
+            error_message = (
+                f"Received status code: {request.status_code} ({request.url}) {data}"
+            )
             self.logger.error(error_message)
             raise Exception(error_message)
         return self.parse_result(request)
@@ -175,17 +191,17 @@ class Gitea:
         return None
 
     def create_user(
-            self,
-            user_name: str,
-            email: str,
-            password: str,
-            full_name: str = None,
-            login_name: str = None,
-            change_pw=True,
-            send_notify=True,
-            source_id=0,
+        self,
+        user_name: str,
+        email: str,
+        password: str,
+        full_name: str = None,
+        login_name: str = None,
+        change_pw=True,
+        send_notify=True,
+        source_id=0,
     ):
-        """ Create User.
+        """Create User.
         Throws:
             AlreadyExistsException, if the User exists already
             Exception, if something else went wrong.
@@ -222,19 +238,19 @@ class Gitea:
         return user
 
     def create_repo(
-            self,
-            repoOwner: Union[User, Organization],
-            repoName: str,
-            description: str = "",
-            private: bool = False,
-            autoInit=True,
-            gitignores: str = None,
-            license: str = None,
-            readme: str = "Default",
-            issue_labels: str = None,
-            default_branch="master",
+        self,
+        repoOwner: Union[User, Organization],
+        repoName: str,
+        description: str = "",
+        private: bool = False,
+        autoInit=True,
+        gitignores: str = None,
+        license: str = None,
+        readme: str = "Default",
+        issue_labels: str = None,
+        default_branch="master",
     ):
-        """ Create a Repository as the administrator
+        """Create a Repository as the administrator
 
         Throws:
             AlreadyExistsException: If the Repository exists already.
@@ -269,13 +285,13 @@ class Gitea:
         return Repository.parse_response(self, result)
 
     def create_org(
-            self,
-            owner: User,
-            orgName: str,
-            description: str,
-            location="",
-            website="",
-            full_name="",
+        self,
+        owner: User,
+        orgName: str,
+        description: str,
+        location="",
+        website="",
+        full_name="",
     ):
         assert isinstance(owner, User)
         result = self.requests_post(
@@ -303,24 +319,24 @@ class Gitea:
         return Organization.parse_response(self, result)
 
     def create_team(
-            self,
-            org: Organization,
-            name: str,
-            description: str = "",
-            permission: str = "read",
-            can_create_org_repo: bool = False,
-            includes_all_repositories: bool = False,
-            units=(
-                    "repo.code",
-                    "repo.issues",
-                    "repo.ext_issues",
-                    "repo.wiki",
-                    "repo.pulls",
-                    "repo.releases",
-                    "repo.ext_wiki",
-            ),
+        self,
+        org: Organization,
+        name: str,
+        description: str = "",
+        permission: str = "read",
+        can_create_org_repo: bool = False,
+        includes_all_repositories: bool = False,
+        units=(
+            "repo.code",
+            "repo.issues",
+            "repo.ext_issues",
+            "repo.wiki",
+            "repo.pulls",
+            "repo.releases",
+            "repo.ext_wiki",
+        ),
     ):
-        """ Creates a Team.
+        """Creates a Team.
 
         Args:
             org (Organization): Organization the Team will be part of.

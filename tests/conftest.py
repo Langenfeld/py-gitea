@@ -13,6 +13,7 @@ import pytest
 
 from gitea import Gitea
 
+
 @pytest.fixture
 def instance(scope="module"):
     try:
