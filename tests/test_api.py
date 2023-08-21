@@ -433,9 +433,9 @@ def test_delete_user(instance):
         User.request(instance, user_name)
 
 
-def test_migrate_repo(instance):
-    service = Repository(instance)
-    repo = service.migrate_repo(
+def test_migrate_repo_gitea(instance):
+    repo = Repository.migrate_repo(
+        instance,
         MigrationServices.GITEA,
         "https://gitea.com/gitea/awesome-gitea.git",
         test_repo,
@@ -445,5 +445,23 @@ def test_migrate_repo(instance):
     assert repo.description == "user owned repo"
     assert not repo.private
     assert repo.owner.username == "test"
+    assert "README.md" in [f.name for f in repo.get_git_content()]
+    repo = Repository.request(instance, "test", test_repo)
+    repo.delete()
+
+
+def test_migrate_repo_github(instance):
+    repo = Repository.migrate_repo(
+        instance,
+        MigrationServices.GITHUB,
+        "https://github.com/Langenfeld/py-gitea",
+        test_repo,
+        "cloning py-gitea to test py-gitea",
+    )
+    assert repo.name == test_repo
+    assert repo.description == "cloning py-gitea to test py-gitea"
+    assert not repo.private
+    assert repo.owner.username == "test"
+    assert "README.md" in [f.name for f in repo.get_git_content()]
     repo = Repository.request(instance, "test", test_repo)
     repo.delete()

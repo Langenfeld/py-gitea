@@ -565,7 +565,7 @@ class Repository(ApiObject):
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
 
-    def get_git_content(self: str = None, commit: "Commit" = None) -> List["Content"]:
+    def get_git_content(self, commit: "Commit" = None) -> List["Content"]:
         """https://try.gitea.io/api/swagger#/repository/repoGetContentsList"""
         url = f"/repos/{self.owner.username}/{self.name}/contents"
         data = {"ref": commit.sha} if commit else {}
@@ -613,8 +613,10 @@ class Repository(ApiObject):
         )
         self.deleted = True
 
+    @classmethod
     def migrate_repo(
-        self,
+        cls,
+        gitea: "Gitea",
         service: str,
         clone_addr: str,
         repo_name: str,
@@ -641,8 +643,8 @@ class Repository(ApiObject):
             AlreadyExistsException: If the Repository exists already.
             Exception: If something else went wrong.
         """
-        result = self.gitea.requests_post(
-            self.REPO_MIGRATE,
+        result = gitea.requests_post(
+            cls.REPO_MIGRATE,
             data={
                 "auth_password": auth_password,
                 "auth_token": auth_token,
@@ -666,15 +668,15 @@ class Repository(ApiObject):
             },
         )
         if "id" in result:
-            self.gitea.logger.info(
+            gitea.logger.info(
                 "Successfully created Job to Migrate Repository %s " % result["name"]
             )
         else:
-            self.gitea.logger.error(result["message"])
+            gitea.logger.error(result["message"])
             raise Exception(
                 "Repository not Migrated... (gitea: %s)" % result["message"]
             )
-        return Repository.parse_response(self, result)
+        return Repository.parse_response(gitea, result)
 
 
 class Milestone(ApiObject):
