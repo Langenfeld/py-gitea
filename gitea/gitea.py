@@ -2,7 +2,7 @@ import logging
 import json
 from typing import List, Dict, Union
 
-from frozendict import frozendict
+from immutabledict import immutabledict
 import requests
 import urllib3
 
@@ -68,7 +68,7 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
-    def requests_get(self, endpoint: str, params=frozendict(), sudo=None):
+    def requests_get(self, endpoint: str, params=immutabledict(), sudo=None):
         combined_params = {}
         combined_params.update(params)
         if sudo:
@@ -92,7 +92,7 @@ class Gitea:
     def requests_get_paginated(
         self,
         endpoint: str,
-        params=frozendict(),
+        params=immutabledict(),
         sudo=None,
         page_key: str = "page",
         page_limit: int = 0,
