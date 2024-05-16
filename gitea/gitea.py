@@ -87,7 +87,11 @@ class Gitea:
             if request.status_code in [409]:
                 raise ConflictException(message)
             raise Exception(message)
-        return self.parse_result(request)
+        try:
+            result = self.parse_result(request)
+        except ValueError:
+            result = request.text
+        return result
 
     def requests_get_paginated(
         self,
