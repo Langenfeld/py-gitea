@@ -68,7 +68,9 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
-    def requests_get(self, endpoint: str, params=immutabledict(), sudo=None):
+    def _requests_get(
+        self, endpoint: str, params=immutabledict(), sudo=None
+    ) -> requests.Response:
         combined_params = {}
         combined_params.update(params)
         if sudo:
@@ -87,7 +89,15 @@ class Gitea:
             if request.status_code in [409]:
                 raise ConflictException(message)
             raise Exception(message)
+        return request
+
+    def requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> dict:
+        request = self._requests_get(endpoint, params, sudo)
         return self.parse_result(request)
+
+    def requests_get_raw(self, endpoint: str, params=immutabledict(), sudo=None) -> str:
+        request = self._requests_get(endpoint, params, sudo)
+        return request.text
 
     def requests_get_paginated(
         self,
