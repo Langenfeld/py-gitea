@@ -469,7 +469,7 @@ class Repository(ApiObject):
         results = self.gitea.requests_get(
             Repository.REPO_TOPICS % (self.owner.username, self.name)
         )
-        return results
+        return results["topics"]
         
     def get_user_time(self, username) -> float:
         if isinstance(username, User):
