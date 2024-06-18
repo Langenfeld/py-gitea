@@ -343,6 +343,7 @@ class Repository(ApiObject):
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
+    REPO_TOPICS = """/repos/%s/%s/topics""" # <owner, <reponame>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
@@ -463,7 +464,13 @@ class Repository(ApiObject):
             Repository.REPO_TIMES % (self.owner.username, self.name)
         )
         return results
-
+    
+    def get_topics(self):
+        results = self.gitea.requests_get(
+            Repository.REPO_TOPICS % (self.owner.username, self.name)
+        )
+        return results
+        
     def get_user_time(self, username) -> float:
         if isinstance(username, User):
             username = username.username
