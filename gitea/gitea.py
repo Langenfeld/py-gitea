@@ -22,7 +22,12 @@ class Gitea:
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
     def __init__(
-        self, gitea_url: str, token_text=None, auth=None, verify=True, log_level="INFO"
+        self,
+        gitea_url: str,
+        token_text=None,
+        auth=None,
+        verify=True,
+        log_level="INFO",
     ):
         """Initializing Gitea-instance
 
