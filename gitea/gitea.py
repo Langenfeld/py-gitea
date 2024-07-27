@@ -28,6 +28,8 @@ class Gitea:
         auth=None,
         verify=True,
         log_level="INFO",
+        # example: "socks5h://127.0.0.1:9050"
+        proxy=None,
     ):
         """Initializing Gitea-instance
 
@@ -47,6 +49,12 @@ class Gitea:
         }
         self.url = gitea_url
         self.requests = requests.Session()
+
+        if proxy:
+            self.requests.proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
 
         # Manage authentification
         if not token_text and not auth:
