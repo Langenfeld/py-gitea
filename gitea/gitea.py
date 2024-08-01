@@ -352,6 +352,15 @@ class Gitea:
             "repo.releases",
             "repo.ext_wiki",
         ),
+        units_map: Dict[str, str] = {
+            "repo.code": "none",
+            "repo.issues": "none",
+            "repo.ext_issues": "none",
+            "repo.wiki": "none",
+            "repo.pulls": "none",
+            "repo.releases": "none",
+            "repo.ext_wiki": "none",
+        },
     ):
         """Creates a Team.
 
@@ -370,6 +379,7 @@ class Gitea:
                 "can_create_org_repo": can_create_org_repo,
                 "includes_all_repositories": includes_all_repositories,
                 "units": units,
+                "units_map": units_map,
             },
         )
         if "id" in result:
