@@ -479,7 +479,7 @@ class Repository(ApiObject):
         )
 
     def del_topic(self, topic: str):
-        """Add a topic to the repository"""
+        """Delete a topic to the repository"""
         self.gitea.requests_delete(
             Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
         )
