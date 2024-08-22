@@ -348,6 +348,19 @@ def test_team_get_org(instance):
     assert org.username == teams[0].organization.name
 
 
+def test_topic_functions(instance):
+    user = User.request(instance, test_user)
+    repo = Repository.request(instance, user.username, test_repo)
+    repo.add_topic("rings")
+    repo.add_topic("swords")
+    repo.add_topic("dragons")
+    assert "swords" in repo.get_topics()
+    repo.del_topic("swords")
+    assert "swords" not in repo.get_topics()
+    assert "dragons" in repo.get_topics()
+    assert "rings" in repo.get_topics()
+
+
 def test_delete_repo_userowned(instance):
     user = User.request(instance, test_user)
     repo = Repository.request(instance, user.username, test_repo)

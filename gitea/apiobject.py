@@ -343,7 +343,7 @@ class Repository(ApiObject):
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
-    REPO_TOPICS = """/repos/%s/%s/topics""" # <owner, <reponame>
+    REPO_TOPICS = """/repos/%s/%s/topics"""  # <owner, <reponame>
     REPO_TOPIC = """/repos/%s/%s/topics/%s"""  # <owner, <reponame>, <topicname>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
@@ -433,7 +433,7 @@ class Repository(ApiObject):
         try:
             results = self.gitea.requests_get_paginated(
                 Repository.REPO_COMMITS % (self.owner.username, self.name),
-                page_limit= page_limit
+                page_limit=page_limit,
             )
         except ConflictException as err:
             logging.warning(err)
@@ -465,19 +465,25 @@ class Repository(ApiObject):
             Repository.REPO_TIMES % (self.owner.username, self.name)
         )
         return results
-    
-    def get_topics(self):
+
+    def get_topics(self) -> list[str]:
         results = self.gitea.requests_get(
             Repository.REPO_TOPICS % (self.owner.username, self.name)
         )
         return results["topics"]
-    
+
     def add_topic(self, topic: str):
         """Add a topic to the repository"""
-        result = self.gitea.requests_put(
+        self.gitea.requests_put(
             Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
         )
-    
+
+    def del_topic(self, topic: str):
+        """Add a topic to the repository"""
+        self.gitea.requests_delete(
+            Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
+        )
+
     def get_user_time(self, username) -> float:
         if isinstance(username, User):
             username = username.username
