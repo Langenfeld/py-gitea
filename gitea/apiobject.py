@@ -1,9 +1,33 @@
 import logging
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
-
+from dataclasses import dataclass, fields
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
+
+
+@dataclass(frozen=True)
+class RepoUnits:
+    code: str = "none"
+    issues: str = "none"
+    ext_issues: str = "none"
+    wiki: str = "none"
+    pulls: str = "none"
+    releases: str = "none"
+    ext_wiki: str = "none"
+
+    def to_dict(self) -> dict[str, str]:
+        """Return the correctly prefixed (added "repo.") representation for gitea Repository runit Rights"""
+        return {
+            f"repo.{field.name}": getattr(self, field.name) for field in fields(self)
+        }
+
+    @classmethod
+    def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
+        """Parse all known repo units from the dictionary returned by the api"""
+        return RepoUnits(
+            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in fields(cls)}
+        )
 
 
 class Organization(ApiObject):
@@ -119,10 +143,12 @@ class Organization(ApiObject):
             setattr(t, "_organization", self)
         return teams
 
-    def get_team(self, name, ignore_case : bool = False) -> "Team":
+    def get_team(self, name, ignore_case: bool = False) -> "Team":
         teams = self.get_teams()
         for team in teams:
-            if (not ignore_case and team.name == name) or (ignore_case and team.name.lower() == name.lower()):
+            if (not ignore_case and team.name == name) or (
+                ignore_case and team.name.lower() == name.lower()
+            ):
                 return team
         raise NotFoundException("Team not existent in organization.")
 
@@ -916,7 +942,8 @@ class Team(ApiObject):
         return hash(self.organization) ^ hash(self.id)
 
     _fields_to_parsers = {
-        "organization": lambda gitea, o: Organization.parse_response(gitea, o)
+        "organization": lambda gitea, o: Organization.parse_response(gitea, o),
+        "units_map": lambda gitea, o: RepoUnits.from_dict(o),
     }
 
     _patchable_fields = {

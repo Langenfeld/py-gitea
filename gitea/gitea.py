@@ -1,12 +1,11 @@
 import logging
 import json
 from typing import List, Dict, Union
-
 from immutabledict import immutabledict
 import requests
 import urllib3
 
-from .apiobject import User, Organization, Repository, Team
+from .apiobject import User, Organization, Repository, Team, RepoUnits
 from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
 
 
@@ -352,15 +351,7 @@ class Gitea:
             "repo.releases",
             "repo.ext_wiki",
         ),
-        units_map: Dict[str, str] = {
-            "repo.code": "none",
-            "repo.issues": "none",
-            "repo.ext_issues": "none",
-            "repo.wiki": "none",
-            "repo.pulls": "none",
-            "repo.releases": "none",
-            "repo.ext_wiki": "none",
-        },
+        units_map: "RepoUnits" = RepoUnits(),
     ):
         """Creates a Team.
 
@@ -379,7 +370,7 @@ class Gitea:
                 "can_create_org_repo": can_create_org_repo,
                 "includes_all_repositories": includes_all_repositories,
                 "units": units,
-                "units_map": units_map,
+                "units_map": units_map.to_dict(),
             },
         )
         if "id" in result:
