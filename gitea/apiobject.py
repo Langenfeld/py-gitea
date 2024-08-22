@@ -119,10 +119,10 @@ class Organization(ApiObject):
             setattr(t, "_organization", self)
         return teams
 
-    def get_team(self, name) -> "Team":
+    def get_team(self, name, ignore_case : bool = False) -> "Team":
         teams = self.get_teams()
         for team in teams:
-            if team.name == name:
+            if (not ignore_case and team.name == name) or (ignore_case and team.name.lower() == name.lower()):
                 return team
         raise NotFoundException("Team not existent in organization.")
 
