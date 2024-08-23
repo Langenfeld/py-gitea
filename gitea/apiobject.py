@@ -1,9 +1,33 @@
 import logging
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
-
+from dataclasses import dataclass, fields
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
+
+
+@dataclass(frozen=True)
+class RepoUnits:
+    code: str = "none"
+    issues: str = "none"
+    ext_issues: str = "none"
+    wiki: str = "none"
+    pulls: str = "none"
+    releases: str = "none"
+    ext_wiki: str = "none"
+
+    def to_dict(self) -> dict[str, str]:
+        """Return the correctly prefixed (added "repo.") representation for gitea Repository runit Rights"""
+        return {
+            f"repo.{field.name}": getattr(self, field.name) for field in fields(self)
+        }
+
+    @classmethod
+    def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
+        """Parse all known repo units from the dictionary returned by the api"""
+        return RepoUnits(
+            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in fields(cls)}
+        )
 
 
 class Organization(ApiObject):
@@ -119,10 +143,12 @@ class Organization(ApiObject):
             setattr(t, "_organization", self)
         return teams
 
-    def get_team(self, name) -> "Team":
+    def get_team(self, name, ignore_case: bool = False) -> "Team":
         teams = self.get_teams()
         for team in teams:
-            if team.name == name:
+            if (not ignore_case and team.name == name) or (
+                ignore_case and team.name.lower() == name.lower()
+            ):
                 return team
         raise NotFoundException("Team not existent in organization.")
 
@@ -344,6 +370,8 @@ class Repository(ApiObject):
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
+    REPO_TOPICS = """/repos/%s/%s/topics"""  # <owner, <reponame>
+    REPO_TOPIC = """/repos/%s/%s/topics/%s"""  # <owner, <reponame>, <topicname>
     REPO_USER_TIME = """/repos/%s/%s/times/%s"""  # <owner>, <reponame>, <username>
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
@@ -432,7 +460,7 @@ class Repository(ApiObject):
         try:
             results = self.gitea.requests_get_paginated(
                 Repository.REPO_COMMITS % (self.owner.username, self.name),
-                page_limit= page_limit
+                page_limit=page_limit,
             )
         except ConflictException as err:
             logging.warning(err)
@@ -464,6 +492,24 @@ class Repository(ApiObject):
             Repository.REPO_TIMES % (self.owner.username, self.name)
         )
         return results
+
+    def get_topics(self) -> list[str]:
+        results = self.gitea.requests_get(
+            Repository.REPO_TOPICS % (self.owner.username, self.name)
+        )
+        return results["topics"]
+
+    def add_topic(self, topic: str):
+        """Add a topic to the repository"""
+        self.gitea.requests_put(
+            Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
+        )
+
+    def del_topic(self, topic: str):
+        """Delete a topic to the repository"""
+        self.gitea.requests_delete(
+            Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
+        )
 
     def get_user_time(self, username) -> float:
         if isinstance(username, User):
@@ -930,7 +976,8 @@ class Team(ApiObject):
         return hash(self.organization) ^ hash(self.id)
 
     _fields_to_parsers = {
-        "organization": lambda gitea, o: Organization.parse_response(gitea, o)
+        "organization": lambda gitea, o: Organization.parse_response(gitea, o),
+        "units_map": lambda gitea, o: RepoUnits.from_dict(o),
     }
 
     _patchable_fields = {

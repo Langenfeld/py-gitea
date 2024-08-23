@@ -1,12 +1,11 @@
 import logging
 import json
 from typing import List, Dict, Union
-
 from immutabledict import immutabledict
 import requests
 import urllib3
 
-from .apiobject import User, Organization, Repository, Team
+from .apiobject import User, Organization, Repository, Team, RepoUnits
 from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
 
 
@@ -22,7 +21,14 @@ class Gitea:
     CREATE_TEAM = """/orgs/%s/teams"""  # <orgname>
 
     def __init__(
-        self, gitea_url: str, token_text=None, auth=None, verify=True, log_level="INFO"
+        self,
+        gitea_url: str,
+        token_text=None,
+        auth=None,
+        verify=True,
+        log_level="INFO",
+        # example: "socks5h://127.0.0.1:9050"
+        proxy=None,
     ):
         """Initializing Gitea-instance
 
@@ -42,6 +48,12 @@ class Gitea:
         }
         self.url = gitea_url
         self.requests = requests.Session()
+
+        if proxy:
+            self.requests.proxies = {
+                "http": proxy,
+                "https": proxy,
+            }
 
         # Manage authentification
         if not token_text and not auth:
@@ -352,6 +364,7 @@ class Gitea:
             "repo.releases",
             "repo.ext_wiki",
         ),
+        units_map: "RepoUnits" = RepoUnits(),
     ):
         """Creates a Team.
 
@@ -370,6 +383,7 @@ class Gitea:
                 "can_create_org_repo": can_create_org_repo,
                 "includes_all_repositories": includes_all_repositories,
                 "units": units,
+                "units_map": units_map.to_dict(),
             },
         )
         if "id" in result:
