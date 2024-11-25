@@ -15,6 +15,7 @@ class RepoUnits:
     pulls: str = "none"
     releases: str = "none"
     ext_wiki: str = "none"
+    actions: str = "none"
 
     def to_dict(self) -> dict[str, str]:
         """Return the correctly prefixed (added "repo.") representation for gitea Repository runit Rights"""
@@ -26,7 +27,7 @@ class RepoUnits:
     def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
         """Parse all known repo units from the dictionary returned by the api"""
         return RepoUnits(
-            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in fields(cls)}
+            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}}
         )
 
 
@@ -415,6 +416,7 @@ class Repository(ApiObject):
         "enable_prune",
         "external_tracker",
         "external_wiki",
+        "has_actions",
         "has_issues",
         "has_projects",
         "has_pull_requests",
@@ -944,6 +946,10 @@ class Team(ApiObject):
     _fields_to_parsers = {
         "organization": lambda gitea, o: Organization.parse_response(gitea, o),
         "units_map": lambda gitea, o: RepoUnits.from_dict(o),
+    }
+
+    _parsers_to_fields = {
+        "units_map": lambda m: RepoUnits.to_dict(m),
     }
 
     _patchable_fields = {
