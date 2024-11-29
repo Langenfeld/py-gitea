@@ -9,4 +9,5 @@ from .gitea import (
     AlreadyExistsException,
     Issue,
     Milestone,
+    Label,
 )

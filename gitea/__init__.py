@@ -16,6 +16,7 @@ from .apiobject import (
     Commit,
     Comment,
     Content,
+    Label,
     MigrationServices,
 )
 
@@ -33,4 +34,5 @@ __all__ = [
     "Commit",
     "Comment",
     "Content",
+    "Label",
 ]

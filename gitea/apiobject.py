@@ -40,6 +40,7 @@ class Organization(ApiObject):
     ORG_GET_MEMBERS = """/orgs/%s/members"""  # <org>
     ORG_IS_MEMBER = """/orgs/%s/members/%s"""  # <org>, <username>
     ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
+    ORG_LABELS = """/orgs/%s/labels"""
 
     def __init__(self, gitea):
         super().__init__(gitea)
@@ -187,6 +188,36 @@ class Organization(ApiObject):
         ]
         return results
 
+    def create_label(
+        self,
+        name: str,
+        color: str,
+        description: str = "",
+        exclusive: bool = False,
+        is_archived: bool = False,
+    ) -> "Label":
+        result = self.gitea.requests_post(
+            f"/orgs/{self.name}/labels",
+            data={
+                "name": name,
+                "color": color,
+                "description": description,
+                "exclusive": exclusive,
+                "is_archived": is_archived,
+            },
+        )
+        if "id" in result:
+            self.gitea.logger.info(
+                "Successfully created Label %s " % result["name"]
+            )
+        else:
+            self.gitea.logger.error(result["message"])
+            raise Exception("Label not created... (gitea: %s)" % result["message"])
+        return Label.parse_response(self.gitea, result)
+
+    def get_labels(self) -> List["Label"]:
+        results = self.gitea.requests_get(Organization.ORG_LABELS % self.name)
+        return [Label.parse_response(self.gitea, result) for result in results]
 
 class User(ApiObject):
     API_OBJECT = """/users/{name}"""  # <org>
@@ -375,6 +406,7 @@ class Repository(ApiObject):
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
+    REPO_LABELS = """/repos/%s/%s/labels"""
 
     def __init__(self, gitea):
         super().__init__(gitea)
@@ -660,6 +692,37 @@ class Repository(ApiObject):
         )
         self.deleted = True
 
+    def create_label(
+        self,
+        name: str,
+        color: str,
+        description: str = "",
+        exclusive: bool = False,
+        is_archived: bool = False,
+    ) -> "Label":
+        result = self.gitea.requests_post(
+            f"/repos/{self.owner.username}/{self.name}/labels",
+            data={
+                "name": name,
+                "color": color,
+                "description": description,
+                "exclusive": exclusive,
+                "is_archived": is_archived,
+            },
+        )
+        if "id" in result:
+            self.gitea.logger.info(
+                "Successfully created Label %s " % result["name"]
+            )
+        else:
+            self.gitea.logger.error(result["message"])
+            raise Exception("Label not created... (gitea: %s)" % result["message"])
+        return Label.parse_response(self.gitea, result)
+
+    def get_labels(self) -> List["Label"]:
+        results = self.gitea.requests_get(Repository.REPO_LABELS % (self.owner.username,self.name))
+        return [Label.parse_response(self.gitea, result) for result in results]
+
     @classmethod
     def migrate_repo(
         cls,
@@ -843,10 +906,16 @@ class Issue(ApiObject):
         "state": lambda gitea, s: Issue.CLOSED if s == "closed" else Issue.OPENED,
         # Repository in this request is just a "RepositoryMeta" record, thus request whole object
         "repository": lambda gitea, r: Repository.request(gitea, r["owner"], r["name"]),
+        "labels": lambda gitea, ls: [Label.parse_response(gitea, l) for l in ls],
+        "created_at": lambda gitea, t: Util.convert_time(t),
+        "closed_at": lambda gitea, t: Util.convert_time(t),
+        "updated_at": lambda gitea, t: Util.convert_time(t),
+        "due_date": lambda gitea, t: Util.convert_time(t),
     }
 
     _parsers_to_fields = {
         "milestone": lambda m: m.id,
+        "due_date": lambda m: m.strftime('%Y-%m-%dT%H:%M:%S.000Z') if not isinstance(m, str) else m,
     }
 
     _patchable_fields = {
@@ -921,6 +990,16 @@ class Issue(ApiObject):
             for comment in allProjectComments
             if comment.issue_url.endswith("/" + str(self.number))
         ]
+    
+    def set_labels(self, labels: List["Label"]):
+        args = {
+            "owner": self.repository.owner.username,
+            "repo": self.repository.name,
+            "index": self.number,
+        }
+        self.gitea.requests_put(
+            Issue.API_OBJECT.format(**args)+'/labels', data={"labels": [l.id for l in labels]}
+        )
 
 
 class Team(ApiObject):
@@ -1008,6 +1087,64 @@ class Content(ReadonlyApiObject):
 
     def __hash__(self):
         return hash(self.repo) ^ hash(self.sha) ^ hash(self.name)
+
+class Label(ApiObject):
+    API_OBJECT_REPO = """/repos/{owner}/{repo}/labels/{id}"""
+    API_OBJECT_ORG = """/orgs/{org}/labels/{id}"""
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def __eq__(self, other):
+        if not isinstance(other, Label):
+            return False
+        return self.id == other.id
+    def __hash__(self):
+        return hash(self.id)
+
+    _fields_to_parsers = {
+        "color": lambda gitea, o: o,
+        "description": lambda gitea, o: o,
+        "excluses": lambda gitea, o: bool(o),
+        "id": lambda gitea, o: int(o),
+        "is_archived": lambda gitea, o: bool(o),
+        "name": lambda gitea, o: o,
+    }
+
+    _patchable_fields = {"color", "description", "exclusive", "is_archived", "name"}
+
+    @classmethod
+    def request(cls, gitea: "Gitea", owner: str, repo: str, id: int):
+        if repo is None:
+            obj = cls._request(gitea, {"org": owner, "id": id})
+            obj.org_name = owner
+            obj.owner_name = None
+            obj.repo_name = None
+        else:
+            obj = cls._request(gitea, {"owner": owner, "repo": repo, "id": id})
+            obj.org_name = None
+            obj.owner_name = owner
+            obj.repo_name = repo
+        return obj
+
+    @classmethod
+    def _get_gitea_api_object(cls, gitea, args):
+        if "org" in args:
+            return gitea.requests_get(cls.API_OBJECT_ORG.format(**args))
+        else:
+            return gitea.requests_get(cls.API_OBJECT_REPO.format(**args))
+        
+    def commit(self):
+        values = self.get_dirty_fields()
+        url_copy = self.url
+        endpoint = url_copy.replace(self.gitea.url+'/api/v1/','')
+        endpoint_list = endpoint.split('/')
+        if endpoint_list[0] == 'orgs':
+            args = {"org": endpoint_list[1], "id": self.id}
+            self.gitea.requests_patch(self.API_OBJECT_ORG.format(**args), data=values)
+        else:
+            args = {"owner": endpoint_list[1], "repo": endpoint_list[2], "id": self.id}
+            self.gitea.requests_patch(self.API_OBJECT_REPO.format(**args), data=values)
+        self.dirty_fields = {}
 
 
 class Util:
