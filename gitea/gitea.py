@@ -144,9 +144,13 @@ class Gitea:
             self.logger.error(message)
             raise Exception(message)
 
-    def requests_delete(self, endpoint: str):
-        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers)
-        if request.status_code not in [204]:
+    def requests_delete(self, endpoint: str, data: dict = None):
+        if not data:
+            data = {}
+        request = self.requests.delete(
+            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
+        )
+        if request.status_code not in [200, 204]:
             message = f"Received status code: {request.status_code} ({request.url})"
             self.logger.error(message)
             raise Exception(message)

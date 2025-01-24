@@ -216,6 +216,21 @@ def test_change_file(instance):
     assert len(readme_content) > 0
     assert TESTFILE_CONENTE in str(base64.b64decode(readme_content))
 
+def test_delete_file(instance):
+    TESTFILE_CONENTE = "TestStringFileContent2"
+    TESTFILE_CONENTE_B64 = base64.b64encode(bytes(TESTFILE_CONENTE, "utf-8"))
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    repo.create_file("testfile2.md", content=TESTFILE_CONENTE_B64.decode("ascii"))
+    # test if putting was successful
+    content = repo.get_git_content()
+    readmes = [c for c in content if c.name == "testfile2.md"]
+    assert len(readmes) > 0
+    # test if deleting was successful
+    repo.delete_file("testfile2.md", readmes[0].sha)
+    content = repo.get_git_content()
+    readmes = [c for c in content if c.name == "testfile2.md"]
+    assert len(readmes) == 0
 
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
