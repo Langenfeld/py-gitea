@@ -364,6 +364,7 @@ class Repository(ApiObject):
     REPO_IS_COLLABORATOR = (
         """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     )
+    REPO_PERMISSION = """/repos/%s/%s/collaborators/%s/permission"""
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
@@ -581,6 +582,14 @@ class Repository(ApiObject):
         except:
             return False
 
+    def get_user_permission(self, username) -> "UserRepoPermission":
+        if isinstance(username, User):
+            username = username.username
+        url = Repository.REPO_PERMISSION % (self.owner.username, self.name, username)
+        response = self.gitea.requests_get(url)
+        perm = UserRepoPermission.parse_response(self.gitea, response)
+        return perm
+
     def get_users_with_access(self) -> Sequence[User]:
         url = f"/repos/{self.owner.username}/{self.name}/collaborators"
         response = self.gitea.requests_get(url)
@@ -737,6 +746,31 @@ class Repository(ApiObject):
                 "Repository not Migrated... (gitea: %s)" % result["message"]
             )
         return Repository.parse_response(gitea, result)
+
+
+class UserRepoPermission(ReadonlyApiObject):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def __eq__(self, other):
+        if not isinstance(other, UserRepoPermission):
+            return False
+        return (
+            self.permission == other.permission
+            and self.role_name == other.role_name
+            and self.user == other.user
+        )
+
+    def __hash__(self):
+        return hash(self.permission) ^ hash(self.role_name) ^ hash(self.user)
+
+    _fields_to_parsers = {
+        "user": lambda gitea, r: User.parse_response(gitea, r),
+    }
 
 
 class Milestone(ApiObject):
