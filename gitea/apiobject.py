@@ -357,6 +357,32 @@ class Branch(ReadonlyApiObject):
     def request(cls, gitea: "Gitea", owner: str, repo: str, ref: str):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
+class RepositoryBranchProtections(ApiObject):
+    REPO_BRANCH_PROTECTIONS_BY_NAME = """/repos/{owner}/{repo}/branch_protections/{name}"""
+    _owner: str
+    _repo: str
+
+    _patchable_fields = {
+        "enable_push",
+    }
+
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def set(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {
+            "owner": self._owner,
+            "repo": self._repo,
+            "name": self.rule_name
+        }
+        url = RepositoryBranchProtections.REPO_BRANCH_PROTECTIONS_BY_NAME.format(**args)
+        self.gitea.requests_patch(url, data=values)
+        self.dirty_fields = {}
 
 class Repository(ApiObject):
     API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
@@ -376,6 +402,7 @@ class Repository(ApiObject):
     REPO_COMMITS = "/repos/%s/%s/commits"  # <owner>, <reponame>
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
+    REPO_BRANCH_PROTECTIONS = """/repos/{owner}/{repo}/branch_protections"""
 
     def __init__(self, gitea):
         super().__init__(gitea)
@@ -420,9 +447,9 @@ class Repository(ApiObject):
         "has_projects",
         "has_pull_requests",
         "has_wiki",
-	"has_releases",
-	"has_actions",
-	"has_packages",
+        "has_releases",
+        "has_actions",
+        "has_packages",
         "ignore_whitespace_conflicts",
         "internal_tracker",
         "mirror_interval",
@@ -747,6 +774,19 @@ class Repository(ApiObject):
             )
         return Repository.parse_response(gitea, result)
 
+    def get_branch_protections(self) -> 'list[RepositoryBranchProtections]':
+        args = {"owner":self.owner.username, "repo": self.name}
+        url = Repository.REPO_BRANCH_PROTECTIONS.format(**args)
+        results = self.gitea.requests_get(url)
+
+        branch_protections = []
+        for result in results:
+            branch_protection = RepositoryBranchProtections.parse_response(self.gitea, result)
+            branch_protection._owner = args["owner"]
+            branch_protection._repo = args["repo"]
+            branch_protections.append(branch_protection)
+
+        return branch_protections
 
 class UserRepoPermission(ReadonlyApiObject):
     READ = "read"
