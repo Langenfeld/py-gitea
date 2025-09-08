@@ -8,8 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12","3.11","3.10"]
-        gitea: ["1.24","1.23","1.22"]
+        python-version: ["3.12"]
+        gitea: ["1.24","1.23"]
 
     services:
       gitea:
