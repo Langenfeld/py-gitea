@@ -1,4 +1,4 @@
-from .gitea import (
+from gitea import (
     Gitea,
     User,
     Organization,
