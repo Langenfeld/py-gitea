@@ -56,7 +56,7 @@ class Gitea:
             }
 
         # Manage authentification
-        if not token_text and not auth:
+        if token_text and auth:
             raise ValueError("Please provide auth or token_text, but not both")
         if token_text:
             self.headers["Authorization"] = "token " + token_text
