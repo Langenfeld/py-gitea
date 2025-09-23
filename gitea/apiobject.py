@@ -420,9 +420,9 @@ class Repository(ApiObject):
         "has_projects",
         "has_pull_requests",
         "has_wiki",
-	"has_releases",
-	"has_actions",
-	"has_packages",
+        "has_releases",
+        "has_actions",
+        "has_packages",
         "ignore_whitespace_conflicts",
         "internal_tracker",
         "mirror_interval",
@@ -665,10 +665,8 @@ class Repository(ApiObject):
         url = f"/repos/{self.owner.username}/{self.name}/contents/{file_path}"
         data.update({"sha": file_sha, "content": content})
         return self.gitea.requests_put(url, data)
-    
-    def delete_file(
-        self, file_path: str, file_sha: str, data: dict = None
-    ):
+
+    def delete_file(self, file_path: str, file_sha: str, data: dict = None):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
         if not data:
             data = {}
