@@ -192,14 +192,24 @@ class Gitea:
         path = "/orgs/" + orgname + "/public_members"
         return self.requests_get(path)
 
-    def get_orgs(self):
-        path = "/admin/orgs"
+    def get_orgs(self, force_public=False):
+        path = "/orgs"
+        if not force_public and self.__is_admin_user():
+            path = "/admin/orgs"
         results = self.requests_get(path)
         return [Organization.parse_response(self, result) for result in results]
 
     def get_user(self):
         result = self.requests_get(Gitea.GET_USER)
         return User.parse_response(self, result)
+
+    def __is_admin_user(self):
+        try:
+            u = self.get_user()
+        except Exception as e:
+            # TODO throw specialized HTTP Exceptions
+            return False
+        return u.is_admin
 
     def get_version(self) -> str:
         result = self.requests_get(Gitea.GITEA_VERSION)
