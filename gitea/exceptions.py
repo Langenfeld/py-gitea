@@ -1,16 +1,35 @@
-class AlreadyExistsException(Exception):
+class GiteaApiException(Exception):
+    """Something in contact with the GiteaApi failed.
+    Note: Just use as fallback if no more specific Exception is available."""
+
     pass
 
 
-class NotFoundException(Exception):
+class AlreadyExistsException(GiteaApiException):
     pass
 
 
-class ObjectIsInvalid(Exception):
+class NotFoundException(GiteaApiException):
     pass
 
 
-class ConflictException(Exception):
+class ObjectIsInvalid(GiteaApiException):
+    pass
+
+
+class Unauthorized(GiteaApiException):
+    pass
+
+
+class Unprocessable(GiteaApiException):
+    pass
+
+
+class Forbidden(GiteaApiException):
+    pass
+
+
+class ConflictException(GiteaApiException):
     pass
 
 
