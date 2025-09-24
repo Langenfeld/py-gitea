@@ -17,17 +17,13 @@ class RepoUnits:
     ext_wiki: str = "none"
 
     def to_dict(self) -> dict[str, str]:
-        """Return the correctly prefixed (added "repo.") representation for gitea Repository runit Rights"""
-        return {
-            f"repo.{field.name}": getattr(self, field.name) for field in fields(self)
-        }
+        """Return the correctly prefixed (added "repo.") representation for gitea Repository unit Rights"""
+        return {f"repo.{field.name}": getattr(self, field.name) for field in fields(self)}
 
     @classmethod
     def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
         """Parse all known repo units from the dictionary returned by the api"""
-        return RepoUnits(
-            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in fields(cls)}
-        )
+        return RepoUnits(**{k[5:]: v for k, v in unit_dict.items() if k[5:] in fields(cls)})
 
 
 class Organization(ApiObject):
@@ -112,18 +108,14 @@ class Organization(ApiObject):
             },
         )
         if "id" in result:
-            self.gitea.logger.info(
-                "Successfully created Repository %s " % result["name"]
-            )
+            self.gitea.logger.info("Successfully created Repository %s " % result["name"])
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
         return Repository.parse_response(self, result)
 
     def get_repositories(self) -> List["Repository"]:
-        results = self.gitea.requests_get_paginated(
-            Organization.ORG_REPOS_REQUEST % self.username
-        )
+        results = self.gitea.requests_get_paginated(Organization.ORG_REPOS_REQUEST % self.username)
         return [Repository.parse_response(self.gitea, result) for result in results]
 
     def get_repository(self, name) -> "Repository":
@@ -134,9 +126,7 @@ class Organization(ApiObject):
         raise NotFoundException("Repository %s not existent in organization." % name)
 
     def get_teams(self) -> List["Team"]:
-        results = self.gitea.requests_get(
-            Organization.ORG_TEAMS_REQUEST % self.username
-        )
+        results = self.gitea.requests_get(Organization.ORG_TEAMS_REQUEST % self.username)
         teams = [Team.parse_response(self.gitea, result) for result in results]
         # organisation seems to be missing using this request, so we add org manually
         for t in teams:
@@ -146,9 +136,7 @@ class Organization(ApiObject):
     def get_team(self, name, ignore_case: bool = False) -> "Team":
         teams = self.get_teams()
         for team in teams:
-            if (not ignore_case and team.name == name) or (
-                ignore_case and team.name.lower() == name.lower()
-            ):
+            if (not ignore_case and team.name == name) or (ignore_case and team.name.lower() == name.lower()):
                 return team
         raise NotFoundException("Team not existent in organization.")
 
@@ -161,12 +149,14 @@ class Organization(ApiObject):
             username = username.username
         try:
             # returns 204 if its ok, 404 if its not
-            self.gitea.requests_get(
-                Organization.ORG_IS_MEMBER % (self.username, username)
-            )
+            self.gitea.requests_get(Organization.ORG_IS_MEMBER % (self.username, username))
             return True
         except:
             return False
+
+    def get_public_members(self):
+        path = f"/orgs/{self.name}/public_members"
+        return self.gitea.requests_get(path)
 
     def remove_member(self, user: "User"):
         path = f"/orgs/{self.username}/members/{user.username}"
@@ -181,10 +171,7 @@ class Organization(ApiObject):
 
     def get_heatmap(self) -> List[Tuple[datetime, int]]:
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
-        results = [
-            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
-            for result in results
-        ]
+        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
 
@@ -284,9 +271,7 @@ class User(ApiObject):
             },
         )
         if "id" in result:
-            self.gitea.logger.info(
-                "Successfully created Repository %s " % result["name"]
-            )
+            self.gitea.logger.info("Successfully created Repository %s " % result["name"])
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
@@ -329,10 +314,7 @@ class User(ApiObject):
 
     def get_heatmap(self) -> List[Tuple[datetime, int]]:
         results = self.gitea.requests_get(User.USER_HEATMAP % self.username)
-        results = [
-            (datetime.fromtimestamp(result["timestamp"]), result["contributions"])
-            for result in results
-        ]
+        results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
 
@@ -361,9 +343,7 @@ class Branch(ReadonlyApiObject):
 class Repository(ApiObject):
     API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_MIGRATE = """/repos/migrate"""
-    REPO_IS_COLLABORATOR = (
-        """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
-    )
+    REPO_IS_COLLABORATOR = """/repos/%s/%s/collaborators/%s"""  # <owner>, <reponame>, <username>
     REPO_PERMISSION = """/repos/%s/%s/collaborators/%s/permission"""
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
@@ -440,18 +420,14 @@ class Repository(ApiObject):
 
     def get_branches(self) -> List["Branch"]:
         """Get all the Branches of this Repository."""
-        results = self.gitea.requests_get(
-            Repository.REPO_BRANCHES % (self.owner.username, self.name)
-        )
+        results = self.gitea.requests_get(Repository.REPO_BRANCHES % (self.owner.username, self.name))
         return [Branch.parse_response(self.gitea, result) for result in results]
 
     def add_branch(self, create_from: Branch, newname: str) -> "Branch":
         """Add a branch to the repository"""
         # Note: will only work with gitea 1.13 or higher!
         data = {"new_branch_name": newname, "old_branch_name": create_from.name}
-        result = self.gitea.requests_post(
-            Repository.REPO_BRANCHES % (self.owner.username, self.name), data=data
-        )
+        result = self.gitea.requests_post(Repository.REPO_BRANCHES % (self.owner.username, self.name), data=data)
         return Branch.parse_response(self.gitea, result)
 
     def get_issues(self) -> List["Issue"]:
@@ -467,9 +443,7 @@ class Repository(ApiObject):
             )
         except ConflictException as err:
             logging.warning(err)
-            logging.warning(
-                "Repository %s/%s is Empty" % (self.owner.username, self.name)
-            )
+            logging.warning("Repository %s/%s is Empty" % (self.owner.username, self.name))
             results = []
         return [Commit.parse_response(self.gitea, result) for result in results]
 
@@ -491,35 +465,25 @@ class Repository(ApiObject):
         return issues
 
     def get_times(self):
-        results = self.gitea.requests_get(
-            Repository.REPO_TIMES % (self.owner.username, self.name)
-        )
+        results = self.gitea.requests_get(Repository.REPO_TIMES % (self.owner.username, self.name))
         return results
 
     def get_topics(self) -> list[str]:
-        results = self.gitea.requests_get(
-            Repository.REPO_TOPICS % (self.owner.username, self.name)
-        )
+        results = self.gitea.requests_get(Repository.REPO_TOPICS % (self.owner.username, self.name))
         return results["topics"]
 
     def add_topic(self, topic: str):
         """Add a topic to the repository"""
-        self.gitea.requests_put(
-            Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
-        )
+        self.gitea.requests_put(Repository.REPO_TOPIC % (self.owner.username, self.name, topic))
 
     def del_topic(self, topic: str):
         """Delete a topic to the repository"""
-        self.gitea.requests_delete(
-            Repository.REPO_TOPIC % (self.owner.username, self.name, topic)
-        )
+        self.gitea.requests_delete(Repository.REPO_TOPIC % (self.owner.username, self.name, topic))
 
     def get_user_time(self, username) -> float:
         if isinstance(username, User):
             username = username.username
-        results = self.gitea.requests_get(
-            Repository.REPO_USER_TIME % (self.owner.username, self.name, username)
-        )
+        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
         time = sum(r["time"] for r in results)
         return time
 
@@ -539,12 +503,8 @@ class Repository(ApiObject):
         )
         return Issue.parse_response(self.gitea, result)
 
-    def create_milestone(
-        self, title: str, description: str, due_date: str = None, state: str = "open"
-    ) -> "Milestone":
-        url = Repository.REPO_MILESTONES.format(
-            owner=self.owner.username, repo=self.name
-        )
+    def create_milestone(self, title: str, description: str, due_date: str = None, state: str = "open") -> "Milestone":
+        url = Repository.REPO_MILESTONES.format(owner=self.owner.username, repo=self.name)
         data = {"title": title, "description": description, "state": state}
         if due_date:
             data["due_date"] = due_date
@@ -574,10 +534,7 @@ class Repository(ApiObject):
             username = username.username
         try:
             # returns 204 if its ok, 404 if its not
-            self.gitea.requests_get(
-                Repository.REPO_IS_COLLABORATOR
-                % (self.owner.username, self.name, username)
-            )
+            self.gitea.requests_get(Repository.REPO_IS_COLLABORATOR % (self.owner.username, self.name, username))
             return True
         except:
             return False
@@ -617,9 +574,7 @@ class Repository(ApiObject):
         url = Repository.REPO_TRANSFER.format(owner=self.owner.username, repo=self.name)
         data = {"new_owner": new_owner.username}
         if isinstance(new_owner, Organization):
-            new_team_ids = [
-                team.id for team in new_teams if team in new_owner.get_teams()
-            ]
+            new_team_ids = [team.id for team in new_teams if team in new_owner.get_teams()]
             data["team_ids"] = new_team_ids
         self.gitea.requests_post(url, data=data)
         # TODO: make sure this instance is either updated or discarded
@@ -628,25 +583,17 @@ class Repository(ApiObject):
         """https://try.gitea.io/api/swagger#/repository/repoGetContentsList"""
         url = f"/repos/{self.owner.username}/{self.name}/contents"
         data = {"ref": commit.sha} if commit else {}
-        result = [
-            Content.parse_response(self.gitea, f)
-            for f in self.gitea.requests_get(url, data)
-        ]
+        result = [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
         return result
 
-    def get_file_content(
-        self, content: "Content", commit: "Commit" = None
-    ) -> Union[str, List["Content"]]:
+    def get_file_content(self, content: "Content", commit: "Commit" = None) -> Union[str, List["Content"]]:
         """https://try.gitea.io/api/swagger#/repository/repoGetContents"""
         url = f"/repos/{self.owner.username}/{self.name}/contents/{content.path}"
         data = {"ref": commit.sha} if commit else {}
         if content.type == Content.FILE:
             return self.gitea.requests_get(url, data)["content"]
         else:
-            return [
-                Content.parse_response(self.gitea, f)
-                for f in self.gitea.requests_get(url, data)
-            ]
+            return [Content.parse_response(self.gitea, f) for f in self.gitea.requests_get(url, data)]
 
     def create_file(self, file_path: str, content: str, data: dict = None):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
@@ -656,9 +603,7 @@ class Repository(ApiObject):
         data.update({"content": content})
         return self.gitea.requests_post(url, data)
 
-    def change_file(
-        self, file_path: str, file_sha: str, content: str, data: dict = None
-    ):
+    def change_file(self, file_path: str, file_sha: str, content: str, data: dict = None):
         """https://try.gitea.io/api/swagger#/repository/repoCreateFile"""
         if not data:
             data = {}
@@ -675,9 +620,7 @@ class Repository(ApiObject):
         return self.gitea.requests_delete(url, data)
 
     def delete(self):
-        self.gitea.requests_delete(
-            Repository.REPO_DELETE % (self.owner.username, self.name)
-        )
+        self.gitea.requests_delete(Repository.REPO_DELETE % (self.owner.username, self.name))
         self.deleted = True
 
     @classmethod
@@ -735,14 +678,10 @@ class Repository(ApiObject):
             },
         )
         if "id" in result:
-            gitea.logger.info(
-                "Successfully created Job to Migrate Repository %s " % result["name"]
-            )
+            gitea.logger.info("Successfully created Job to Migrate Repository %s " % result["name"])
         else:
             gitea.logger.error(result["message"])
-            raise Exception(
-                "Repository not Migrated... (gitea: %s)" % result["message"]
-            )
+            raise Exception("Repository not Migrated... (gitea: %s)" % result["message"])
         return Repository.parse_response(gitea, result)
 
 
@@ -757,11 +696,7 @@ class UserRepoPermission(ReadonlyApiObject):
     def __eq__(self, other):
         if not isinstance(other, UserRepoPermission):
             return False
-        return (
-            self.permission == other.permission
-            and self.role_name == other.role_name
-            and self.user == other.user
-        )
+        return self.permission == other.permission and self.role_name == other.role_name and self.user == other.user
 
     def __hash__(self):
         return hash(self.permission) ^ hash(self.role_name) ^ hash(self.user)
@@ -916,9 +851,7 @@ class Issue(ApiObject):
 
     @classmethod
     def request(cls, gitea: "Gitea", owner: str, repo: str, number: str):
-        api_object = cls._request(
-            gitea, {"owner": owner, "repo": repo, "index": number}
-        )
+        api_object = cls._request(gitea, {"owner": owner, "repo": repo, "index": number})
         return api_object
 
     @classmethod
@@ -929,19 +862,11 @@ class Issue(ApiObject):
         return Issue.parse_response(gitea, result)
 
     def get_time_sum(self, user: User) -> int:
-        results = self.gitea.requests_get(
-            Issue.GET_TIME % (self.owner.username, self.repo.name, self.number)
-        )
-        return sum(
-            result["time"]
-            for result in results
-            if result and result["user_id"] == user.id
-        )
+        results = self.gitea.requests_get(Issue.GET_TIME % (self.owner.username, self.repo.name, self.number))
+        return sum(result["time"] for result in results if result and result["user_id"] == user.id)
 
     def get_times(self) -> Optional[Dict]:
-        return self.gitea.requests_get(
-            Issue.GET_TIME % (self.owner.username, self.repository.name, self.number)
-        )
+        return self.gitea.requests_get(Issue.GET_TIME % (self.owner.username, self.repository.name, self.number))
 
     def delete_time(self, time_id: str):
         path = f"/repos/{self.owner.username}/{self.repository.name}/issues/{self.number}/times/{time_id}"
@@ -949,23 +874,13 @@ class Issue(ApiObject):
 
     def add_time(self, time: int, created: str = None, user_name: User = None):
         path = f"/repos/{self.owner.username}/{self.repository.name}/issues/{self.number}/times"
-        self.gitea.requests_post(
-            path, data={"created": created, "time": int(time), "user_name": user_name}
-        )
+        self.gitea.requests_post(path, data={"created": created, "time": int(time), "user_name": user_name})
 
     def get_comments(self) -> List[ApiObject]:
-        results = self.gitea.requests_get(
-            Issue.GET_COMMENTS % (self.owner.username, self.repo.name)
-        )
-        allProjectComments = [
-            Comment.parse_response(self.gitea, result) for result in results
-        ]
+        results = self.gitea.requests_get(Issue.GET_COMMENTS % (self.owner.username, self.repo.name))
+        allProjectComments = [Comment.parse_response(self.gitea, result) for result in results]
         # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
-        return [
-            comment
-            for comment in allProjectComments
-            if comment.issue_url.endswith("/" + str(self.number))
-        ]
+        return [comment for comment in allProjectComments if comment.issue_url.endswith("/" + str(self.number))]
 
 
 class Team(ApiObject):
@@ -1047,9 +962,7 @@ class Content(ReadonlyApiObject):
     def __eq__(self, other):
         if not isinstance(other, Team):
             return False
-        return (
-            self.repo == self.repo and self.sha == other.sha and self.name == other.name
-        )
+        return self.repo == self.repo and self.sha == other.sha and self.name == other.name
 
     def __hash__(self):
         return hash(self.repo) ^ hash(self.sha) ^ hash(self.name)

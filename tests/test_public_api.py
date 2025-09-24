@@ -18,9 +18,7 @@ class PublicApiTest(TestCase):
     def setUp(self):
         self.test_org = "org_public_" + uuid.uuid4().hex[:8]
         self.test_user = "user_" + uuid.uuid4().hex[:8]
-        self.test_team = (
-            "team_" + uuid.uuid4().hex[:8]
-        )  # team names seem to have a rather low max lenght
+        self.test_team = "team_" + uuid.uuid4().hex[:8]  # team names seem to have a rather low max lenght
         self.test_repo = "repo_" + uuid.uuid4().hex[:8]
         try:
             g = Gitea("http://localhost:3000", open(".token", "r").read().strip())

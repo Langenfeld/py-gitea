@@ -36,9 +36,7 @@ def instance(scope="module"):
 # make up some fresh names for the tests run
 test_org = "org_" + uuid.uuid4().hex[:8]
 test_user = "user_" + uuid.uuid4().hex[:8]
-test_team = (
-    "team_" + uuid.uuid4().hex[:8]
-)  # team names seem to have a rather low max lenght
+test_team = "team_" + uuid.uuid4().hex[:8]  # team names seem to have a rather low max lenght
 test_repo = "repo_" + uuid.uuid4().hex[:8]
 
 
@@ -133,6 +131,12 @@ def test_edit_org_fields_and_commit(instance):
     assert org2.website == "http:\\\\testurl.com"
 
 
+def test_org_get_public_members(instance):
+    org = Organization.request(instance, test_org)
+    members = org.get_public_members()
+    assert members
+
+
 def test_create_repo_orgowned(instance):
     org = Organization.request(instance, test_org)
     repo = instance.create_repo(org, test_repo, "descr")
@@ -205,9 +209,7 @@ def test_change_file(instance):
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile.md"]
     # change
-    repo.change_file(
-        "testfile.md", readmes[0].sha, content=TESTFILE_CONENTE_B64.decode("ascii")
-    )
+    repo.change_file("testfile.md", readmes[0].sha, content=TESTFILE_CONENTE_B64.decode("ascii"))
     # test if putting was successful
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile.md"]
@@ -215,6 +217,7 @@ def test_change_file(instance):
     readme_content = repo.get_file_content(readmes[0])
     assert len(readme_content) > 0
     assert TESTFILE_CONENTE in str(base64.b64decode(readme_content))
+
 
 def test_delete_file(instance):
     TESTFILE_CONENTE = "TestStringFileContent2"
@@ -231,6 +234,7 @@ def test_delete_file(instance):
     content = repo.get_git_content()
     readmes = [c for c in content if c.name == "testfile2.md"]
     assert len(readmes) == 0
+
 
 def test_create_branch(instance):
     org = Organization.request(instance, test_org)
@@ -279,9 +283,7 @@ def test_request_team(instance):
 def test_create_milestone(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repository(test_repo)
-    ms = repo.create_milestone(
-        "I love this Milestone", "Find an otter to adopt this milestone"
-    )
+    ms = repo.create_milestone("I love this Milestone", "Find an otter to adopt this milestone")
     assert isinstance(ms, Milestone)
     assert ms.title == "I love this Milestone"
 
@@ -328,9 +330,7 @@ def test_change_issue(instance):
     org = Organization.request(instance, test_org)
     repo = org.get_repositories()[0]
     ms_title = "othermilestone"
-    issue = Issue.create_issue(
-        instance, repo, "IssueTestissue with Testinput", "asdf2332"
-    )
+    issue = Issue.create_issue(instance, repo, "IssueTestissue with Testinput", "asdf2332")
     new_body = "some new description with some more of that char stuff :)"
     issue.body = new_body
     issue.commit()
@@ -346,16 +346,7 @@ def test_change_issue(instance):
     assert issue3.milestone is not None
     assert issue3.milestone.description == "this is only a teststone2"
     issues = repo.get_issues()
-    assert (
-        len(
-            [
-                issue
-                for issue in issues
-                if issue.milestone is not None and issue.milestone.title == ms_title
-            ]
-        )
-        > 0
-    )
+    assert len([issue for issue in issues if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
 
 
 def test_team_get_org(instance):
@@ -404,9 +395,7 @@ def test_delete_repo_orgowned(instance):
 def test_change_repo_ownership_org(instance):
     old_org = Organization.request(instance, test_org)
     user = User.request(instance, test_user)
-    new_org = instance.create_org(
-        user, test_org + "_repomove", "Org for testing moving repositories"
-    )
+    new_org = instance.create_org(user, test_org + "_repomove", "Org for testing moving repositories")
     new_team = instance.create_team(new_org, test_team + "_repomove", "descr")
     repo_name = test_repo + "_repomove"
     repo = instance.create_repo(old_org, repo_name, "descr")
