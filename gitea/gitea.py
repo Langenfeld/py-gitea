@@ -6,7 +6,15 @@ import requests
 import urllib3
 
 from .apiobject import User, Organization, Repository, Team, RepoUnits
-from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
+from .exceptions import (
+    NotFoundException,
+    ConflictException,
+    AlreadyExistsException,
+    Unauthorized,
+    Forbidden,
+    Unprocessable,
+    GiteaApiException,
+)
 
 
 class Gitea:
@@ -80,6 +88,20 @@ class Gitea:
             return json.loads(result.text)
         return {}
 
+    def __http_to_exception(self, status_code, message):
+        self.logger.error(message)
+        if status_code == 401:
+            raise Forbidden(message)
+        if status_code == 403:
+            raise Unauthorized(f"Check your permissions and try again! ({message})")
+        if status_code == 404:
+            raise NotFoundException(message)
+        if status_code == 409:
+            raise ConflictException(message)
+        if status_code == 422:
+            raise Unprocessable(message)
+        raise GiteaApiException(message)
+
     def _requests_get(
         self, endpoint: str, params=immutabledict(), sudo=None
     ) -> requests.Response:
@@ -90,18 +112,10 @@ class Gitea:
         request = self.requests.get(
             self.__get_url(endpoint), headers=self.headers, params=combined_params
         )
-        if request.status_code not in [200, 201]:
-            message = f"Received status code: {request.status_code} ({request.url})"
-            if request.status_code in [404]:
-                raise NotFoundException(message)
-            if request.status_code in [403]:
-                raise Exception(
-                    f"Unauthorized: {request.url} - Check your permissions and try again! ({message})"
-                )
-            if request.status_code in [409]:
-                raise ConflictException(message)
-            raise Exception(message)
-        return request
+        if request.status_code in [200, 201]:
+            return request
+        message = f"Received status code: {request.status_code} ({request.url})"
+        self.__http_to_exception(request.status_code, message)
 
     def requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> dict:
         request = self._requests_get(endpoint, params, sudo)
@@ -139,10 +153,10 @@ class Gitea:
         request = self.requests.put(
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
-        if request.status_code not in [200, 204]:
-            message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
-            self.logger.error(message)
-            raise Exception(message)
+        if request.status_code in [200, 204]:
+            return
+        message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
+        self.__http_to_exception(request.status_code, message)
 
     def requests_delete(self, endpoint: str, data: dict = None):
         if not data:
@@ -150,54 +164,36 @@ class Gitea:
         request = self.requests.delete(
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
-        if request.status_code not in [200, 204]:
-            message = f"Received status code: {request.status_code} ({request.url})"
-            self.logger.error(message)
-            raise Exception(message)
+        if request.status_code in [200, 204]:
+            return
+        message = f"Received status code: {request.status_code} ({request.url})"
+        self.__http_to_exception(request.status_code, message)
 
     def requests_post(self, endpoint: str, data: dict):
         request = self.requests.post(
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
-        if request.status_code not in [200, 201, 202]:
-            if (
-                "already exists" in request.text
-                or "e-mail already in use" in request.text
-            ):
-                self.logger.warning(request.text)
-                raise AlreadyExistsException()
-            self.logger.error(
-                f"Received status code: {request.status_code} ({request.url})"
-            )
-            self.logger.error(f"With info: {data} ({self.headers})")
-            self.logger.error(f"Answer: {request.text}")
-            raise Exception(
-                f"Received status code: {request.status_code} ({request.url}), {request.text}"
-            )
-        return self.parse_result(request)
+        if request.status_code in [200, 201, 202]:
+            return self.parse_result(request)
+        message = f"Received status code: {request.status_code} ({request.url})"
+        if "already exists" in request.text or "e-mail already in use" in request.text:
+            self.logger.warning(request.text)
+        self.__http_to_exception(request.status_code, message)
 
     def requests_patch(self, endpoint: str, data: dict):
         request = self.requests.patch(
             self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
         )
-        if request.status_code not in [200, 201]:
-            error_message = (
-                f"Received status code: {request.status_code} ({request.url}) {data}"
-            )
-            self.logger.error(error_message)
-            raise Exception(error_message)
-        return self.parse_result(request)
+        if request.status_code in [200, 201]:
+            return self.parse_result(request)
+        message = f"Received status code: {request.status_code} ({request.url})"
+        if "already exists" in request.text or "e-mail already in use" in request.text:
+            self.logger.warning(request.text)
+        self.__http_to_exception(request.status_code, message)
 
     def get_orgs_public_members_all(self, orgname):
         path = "/orgs/" + orgname + "/public_members"
         return self.requests_get(path)
-
-    def get_orgs(self, force_public=False):
-        path = "/orgs"
-        if not force_public and self.__is_admin_user():
-            path = "/admin/orgs"
-        results = self.requests_get(path)
-        return [Organization.parse_response(self, result) for result in results]
 
     def get_user(self):
         result = self.requests_get(Gitea.GET_USER)
@@ -206,8 +202,7 @@ class Gitea:
     def __is_admin_user(self):
         try:
             u = self.get_user()
-        except Exception as e:
-            # TODO throw specialized HTTP Exceptions
+        except Forbidden as e:
             return False
         return u.is_admin
 
@@ -218,6 +213,13 @@ class Gitea:
     def get_users(self) -> List[User]:
         results = self.requests_get(Gitea.GET_USERS_ADMIN)
         return [User.parse_response(self, result) for result in results]
+
+    def get_orgs(self, force_public=False):
+        path = "/orgs"
+        if not force_public and self.__is_admin_user():
+            path = "/admin/orgs"
+        results = self.requests_get(path)
+        return [Organization.parse_response(self, result) for result in results]
 
     def get_user_by_email(self, email: str) -> User:
         users = self.get_users()
