@@ -1,0 +1,80 @@
+name: Test py-gitea
+
+on: [push]
+
+jobs:
+  test:
+    name: Test py-gitea
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12","3.11"]
+        gitea: ["1.24","1.23"]
+
+    services:
+      gitea:
+        image: docker.gitea.com/gitea:${{ matrix.gitea }}
+        env:
+          USER_UID: 1000
+          USER_GID: 1000
+          RUN_USER: git
+          GITEA__security__INSTALL_LOCK: true
+          GITEA__database__DB_TYPE: sqlite3
+        ports:
+          - 3000:3000
+        options: >-
+          --health-cmd="curl --fail http://localhost:3000/ || exit 1"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov coverage pytest-md pytest-emoji
+
+      - name: Wait for Gitea to be ready
+        run: |
+          for i in {1..20}; do
+            if curl -sSf http://localhost:3000/ > /dev/null; then
+              echo "Gitea is up!"
+              break
+            fi
+            echo "Waiting for Gitea..."
+            sleep 5
+          done
+
+      - name: Set up gitea test instance
+        run: |
+          # Add test admin user to gitea
+          curl 'http://localhost:3000/user/sign_up' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-raw 'user_name=test&email=secondarytest%40test.org&password=password&retype=password'
+
+          # Fetch admin user token from gitea
+          curl 'http://localhost:3000/api/v1/users/test/tokens' \
+            -H "Content-Type: application/json" \
+            -d '{"name":"test", "scopes": ["all"]}' \
+            -u test:password > token.json
+
+          python -c "import json; print(json.load(open('token.json'))['sha1'])" > .token
+      - name: Add project root to PYTHONPATH
+        run: echo "PYTHONPATH=${{ github.workspace }}" >> $GITHUB_ENV   
+      - name: Run pytest
+        uses: pavelzw/pytest-action@v2
+        with:
+          verbose: true
+          emoji: true
+          job-summary: true
+          custom-pytest: 'python3 -m pytest ./tests'
+          custom-arguments: '-q'
+          click-to-expand: true
+          report-title: 'Test Report'

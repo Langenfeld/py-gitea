@@ -6,7 +6,15 @@ import requests
 import urllib3
 
 from .apiobject import User, Organization, Repository, Team, RepoUnits
-from .exceptions import NotFoundException, ConflictException, AlreadyExistsException
+from .exceptions import (
+    NotFoundException,
+    ConflictException,
+    AlreadyExistsException,
+    Unauthorized,
+    Forbidden,
+    Unprocessable,
+    GiteaApiException,
+)
 
 
 class Gitea:
@@ -56,7 +64,7 @@ class Gitea:
             }
 
         # Manage authentification
-        if not token_text and not auth:
+        if token_text and auth:
             raise ValueError("Please provide auth or token_text, but not both")
         if token_text:
             self.headers["Authorization"] = "token " + token_text
@@ -74,42 +82,40 @@ class Gitea:
         return url
 
     @staticmethod
-    def parse_result(result) -> Dict:
+    def __parse_result(result) -> Dict:
         """Parses the result-JSON to a dict."""
         if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
 
-    def _requests_get(
-        self, endpoint: str, params=immutabledict(), sudo=None
-    ) -> requests.Response:
+    def __http_to_exception(self, status_code, message):
+        self.logger.error(message)
+        if status_code == 401:
+            raise Forbidden(message)
+        if status_code == 403:
+            raise Unauthorized(f"Check your permissions and try again! ({message})")
+        if status_code == 404:
+            raise NotFoundException(message)
+        if status_code == 409:
+            raise ConflictException(message)
+        if status_code == 422:
+            raise Unprocessable(message)
+        raise GiteaApiException(message)
+
+    def _requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> requests.Response:
         combined_params = {}
         combined_params.update(params)
         if sudo:
             combined_params["sudo"] = sudo.username
-        request = self.requests.get(
-            self.__get_url(endpoint), headers=self.headers, params=combined_params
-        )
-        if request.status_code not in [200, 201]:
-            message = f"Received status code: {request.status_code} ({request.url})"
-            if request.status_code in [404]:
-                raise NotFoundException(message)
-            if request.status_code in [403]:
-                raise Exception(
-                    f"Unauthorized: {request.url} - Check your permissions and try again! ({message})"
-                )
-            if request.status_code in [409]:
-                raise ConflictException(message)
-            raise Exception(message)
-        return request
+        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=combined_params)
+        if request.status_code in [200, 201]:
+            return request
+        message = f"Received status code: {request.status_code} ({request.url})"
+        self.__http_to_exception(request.status_code, message)
 
     def requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> dict:
         request = self._requests_get(endpoint, params, sudo)
-        return self.parse_result(request)
-
-    def requests_get_raw(self, endpoint: str, params=immutabledict(), sudo=None) -> str:
-        request = self._requests_get(endpoint, params, sudo)
-        return request.text
+        return self.__parse_result(request)
 
     def requests_get_paginated(
         self,
@@ -136,66 +142,53 @@ class Gitea:
     def requests_put(self, endpoint: str, data: dict = None):
         if not data:
             data = {}
-        request = self.requests.put(
-            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
-        )
-        if request.status_code not in [200, 204]:
-            message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
-            self.logger.error(message)
-            raise Exception(message)
+        request = self.requests.put(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        if request.status_code in [200, 204]:
+            return
+        message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
+        self.__http_to_exception(request.status_code, message)
 
-    def requests_delete(self, endpoint: str):
-        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers)
-        if request.status_code not in [204]:
-            message = f"Received status code: {request.status_code} ({request.url})"
-            self.logger.error(message)
-            raise Exception(message)
+    def requests_delete(self, endpoint: str, data: dict = None):
+        if not data:
+            data = {}
+        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        if request.status_code in [200, 204]:
+            return
+        message = f"Received status code: {request.status_code} ({request.url})"
+        self.__http_to_exception(request.status_code, message)
 
     def requests_post(self, endpoint: str, data: dict):
-        request = self.requests.post(
-            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
-        )
-        if request.status_code not in [200, 201, 202]:
-            if (
-                "already exists" in request.text
-                or "e-mail already in use" in request.text
-            ):
-                self.logger.warning(request.text)
-                raise AlreadyExistsException()
-            self.logger.error(
-                f"Received status code: {request.status_code} ({request.url})"
-            )
-            self.logger.error(f"With info: {data} ({self.headers})")
-            self.logger.error(f"Answer: {request.text}")
-            raise Exception(
-                f"Received status code: {request.status_code} ({request.url}), {request.text}"
-            )
-        return self.parse_result(request)
+        request = self.requests.post(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        if request.status_code in [200, 201, 202]:
+            return self.__parse_result(request)
+        message = f"Received status code: {request.status_code} ({request.url})"
+        if "already exists" in request.text or "e-mail already in use" in request.text:
+            self.logger.warning(request.text)
+        self.__http_to_exception(request.status_code, message)
 
     def requests_patch(self, endpoint: str, data: dict):
-        request = self.requests.patch(
-            self.__get_url(endpoint), headers=self.headers, data=json.dumps(data)
-        )
-        if request.status_code not in [200, 201]:
-            error_message = (
-                f"Received status code: {request.status_code} ({request.url}) {data}"
-            )
-            self.logger.error(error_message)
-            raise Exception(error_message)
-        return self.parse_result(request)
+        request = self.requests.patch(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        if request.status_code in [200, 201]:
+            return self.__parse_result(request)
+        message = f"Received status code: {request.status_code} ({request.url})"
+        if "already exists" in request.text or "e-mail already in use" in request.text:
+            self.logger.warning(request.text)
+        self.__http_to_exception(request.status_code, message)
 
     def get_orgs_public_members_all(self, orgname):
-        path = "/orgs/" + orgname + "/public_members"
+        path = f"/orgs/{orgname}/public_members"
         return self.requests_get(path)
-
-    def get_orgs(self):
-        path = "/admin/orgs"
-        results = self.requests_get(path)
-        return [Organization.parse_response(self, result) for result in results]
 
     def get_user(self):
         result = self.requests_get(Gitea.GET_USER)
         return User.parse_response(self, result)
+
+    def __is_admin_user(self):
+        try:
+            u = self.get_user()
+        except Forbidden as e:
+            return False
+        return u.is_admin
 
     def get_version(self) -> str:
         result = self.requests_get(Gitea.GITEA_VERSION)
@@ -204,6 +197,13 @@ class Gitea:
     def get_users(self) -> List[User]:
         results = self.requests_get(Gitea.GET_USERS_ADMIN)
         return [User.parse_response(self, result) for result in results]
+
+    def get_orgs(self, force_public=False):
+        path = "/orgs"
+        if not force_public and self.__is_admin_user():
+            path = "/admin/orgs"
+        results = self.requests_get(path)
+        return [Organization.parse_response(self, result) for result in results]
 
     def get_user_by_email(self, email: str) -> User:
         users = self.get_users()
@@ -229,12 +229,8 @@ class Gitea:
         change_pw=True,
         send_notify=True,
         source_id=0,
-    ):
-        """Create User.
-        Throws:
-            AlreadyExistsException, if the User exists already
-            Exception, if something else went wrong.
-        """
+    ) -> User:
+        """Create User."""
         if not login_name:
             login_name = user_name
         if not full_name:
@@ -278,7 +274,7 @@ class Gitea:
         readme: str = "Default",
         issue_labels: str = None,
         default_branch="master",
-    ):
+    ) -> Repository:
         """Create a Repository as the administrator
 
         Throws:
@@ -289,8 +285,7 @@ class Gitea:
             Non-admin users can not use this method. Please use instead
             `gitea.User.create_repo` or `gitea.Organization.create_repo`.
         """
-        # although this only says user in the api, this also works for
-        # organizations
+        # although this only says user in the api, this also works for organizations
         assert isinstance(repoOwner, User) or isinstance(repoOwner, Organization)
         result = self.requests_post(
             Gitea.ADMIN_REPO_CREATE % repoOwner.username,
@@ -321,7 +316,7 @@ class Gitea:
         location="",
         website="",
         full_name="",
-    ):
+    ) -> Organization:
         assert isinstance(owner, User)
         result = self.requests_post(
             Gitea.CREATE_ORG % owner.username,
@@ -334,17 +329,11 @@ class Gitea:
             },
         )
         if "id" in result:
-            self.logger.info(
-                "Successfully created Organization %s" % result["username"]
-            )
+            self.logger.info("Successfully created Organization %s" % result["username"])
         else:
-            self.logger.error(
-                "Organization not created... (gitea: %s)" % result["message"]
-            )
+            self.logger.error("Organization not created... (gitea: %s)" % result["message"])
             self.logger.error(result["message"])
-            raise Exception(
-                "Organization not created... (gitea: %s)" % result["message"]
-            )
+            raise Exception("Organization not created... (gitea: %s)" % result["message"])
         return Organization.parse_response(self, result)
 
     def create_team(
@@ -355,7 +344,7 @@ class Gitea:
         permission: str = "read",
         can_create_org_repo: bool = False,
         includes_all_repositories: bool = False,
-        units=(
+        units: tuple[str] = (
             "repo.code",
             "repo.issues",
             "repo.ext_issues",
@@ -364,16 +353,9 @@ class Gitea:
             "repo.releases",
             "repo.ext_wiki",
         ),
-        units_map: "RepoUnits" = RepoUnits(),
-    ):
-        """Creates a Team.
-
-        Args:
-            org (Organization): Organization the Team will be part of.
-            name (str): The Name of the Team to be created.
-            description (str): Optional, None, short description of the new Team.
-            permission (str): Optional, 'read', What permissions the members
-        """
+        units_map: RepoUnits = RepoUnits(),
+    ) -> Team:
+        """Creates a Team."""
         result = self.requests_post(
             Gitea.CREATE_TEAM % org.username,
             data={
@@ -392,8 +374,6 @@ class Gitea:
             self.logger.error("Team not created... (gitea: %s)" % result["message"])
             self.logger.error(result["message"])
             raise Exception("Team not created... (gitea: %s)" % result["message"])
-        api_object = Team.parse_response(self, result)
-        setattr(
-            api_object, "_organization", org
-        )  # fixes strange behaviour of gitea not returning a valid organization here.
-        return api_object
+        team = Team.parse_response(self, result)
+        setattr(team, "_organization", org)  # fixes strange behaviour of gitea not returning a valid organization here.
+        return team
