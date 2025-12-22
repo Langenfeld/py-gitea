@@ -343,6 +343,28 @@ class Branch(ReadonlyApiObject):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
 
+class Tag(ReadonlyApiObject):
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def __eq__(self, other):
+        if not isinstance(other, Branch):
+            return False
+        return self.id == other.id and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.id) ^ hash(self.name)
+
+    _fields_to_parsers = {
+        # This is not a commit object
+        # "commit": lambda gitea, c: Commit.parse_response(gitea, c)
+    }
+
+    @classmethod
+    def request(cls, gitea: "Gitea", owner: str, repo: str, ref: str):
+        return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
+
+
 class Repository(ApiObject):
     API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_MIGRATE = """/repos/migrate"""
@@ -350,6 +372,7 @@ class Repository(ApiObject):
     REPO_PERMISSION = """/repos/%s/%s/collaborators/%s/permission"""
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
+    REPO_TAGS = """/repos/%s/%s/tags"""  # <owner>, <reponame>
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
@@ -424,7 +447,7 @@ class Repository(ApiObject):
 
     def get_branches(self) -> List["Branch"]:
         """Get all the Branches of this Repository."""
-        results = self.gitea.requests_get(Repository.REPO_BRANCHES % (self.owner.username, self.name))
+        results = self.gitea.requests_get_paginated(Repository.REPO_BRANCHES % (self.owner.username, self.name))
         return [Branch.parse_response(self.gitea, result) for result in results]
 
     def add_branch(self, create_from: Branch, newname: str) -> "Branch":
@@ -433,6 +456,17 @@ class Repository(ApiObject):
         data = {"new_branch_name": newname, "old_branch_name": create_from.name}
         result = self.gitea.requests_post(Repository.REPO_BRANCHES % (self.owner.username, self.name), data=data)
         return Branch.parse_response(self.gitea, result)
+
+    def get_tags(self) -> List["Tag"]:
+        """Get all the Tags of this Repository."""
+        results = self.gitea.requests_get_paginated(Repository.REPO_TAGS % (self.owner.username, self.name))
+        return [Tag.parse_response(self.gitea, result) for result in results]
+
+    def add_tag(self, tag_name: str, target: str, message: str) -> "Tag":
+        """Add a tag to the repository ('target' is commit/hash)"""
+        data = {"tag_name": tag_name, "target": target, "message": message}
+        result = self.gitea.requests_post(Repository.REPO_TAGS % (self.owner.username, self.name), data=data)
+        return Tag.parse_response(self.gitea, result)
 
     def get_issues(self) -> List["Issue"]:
         """Get all Issues of this Repository (open and closed)"""
