@@ -149,6 +149,9 @@ def test_create_repo_orgowned(instance):
 def test_patch_repo(instance):
     fields = {
         "allow_rebase": False,
+        "allow_rebase_explicit": False,
+        "allow_rebase_update": False,
+        "allow_rebase_updates": False,
         "description": "new description",
         "has_projects": True,
         "private": True,
@@ -158,7 +161,7 @@ def test_patch_repo(instance):
     for field, value in fields.items():
         setattr(repo, field, value)
     repo.commit()
-    repo = org.get_repository(test_repo)
+    repod = org.get_repository(test_repo)
     for field, value in fields.items():
         assert getattr(repo, field) == value
 
