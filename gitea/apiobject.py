@@ -527,6 +527,7 @@ class Repository(ApiObject):
         return self.owner.username + "/" + self.name
 
     def create_issue(self, title, assignees=frozenset(), description="") -> ApiObject:
+        #TODO: unify with the ISSUE variant of this
         data = {
             "assignees": assignees,
             "body": description,
@@ -867,6 +868,7 @@ class Issue(ApiObject):
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
     GET_COMMENTS = """/repos/%s/%s/issues/comments"""
     CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
+    API_LABELS = """/repos/{owner}/{repo}/issues/{index}/labels"""
 
     OPENED = "open"
     CLOSED = "closed"
@@ -928,7 +930,7 @@ class Issue(ApiObject):
         return api_object
 
     @classmethod
-    def create_issue(cls, gitea, repo: Repository, title: str, body: str = ""):
+    def create_issue(cls, gitea, repo: Repository, title: str, body: str = "") -> "Issue":
         args = {"owner": repo.owner.username, "repo": repo.name}
         data = {"title": title, "body": body}
         result = gitea.requests_post(Issue.CREATE_ISSUE.format(**args), data=data)
@@ -966,7 +968,7 @@ class Issue(ApiObject):
             "index": self.number,
         }
         self.gitea.requests_put(
-            Issue.API_OBJECT.format(**args)+'/labels', data={"labels": [l.id for l in labels]}
+            Issue.API_LABELS.format(**args), data={"labels": [l.id for l in labels]}
         )
 
 

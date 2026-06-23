@@ -1,4 +1,5 @@
 import base64
+from typing import Final
 
 import pytest
 import uuid
@@ -14,6 +15,7 @@ from gitea import (
     MigrationServices,
 )
 from gitea import NotFoundException, AlreadyExistsException
+from utils import generate_random_color
 
 
 # put a ".token" file into your directory containg only the token for gitea
@@ -75,6 +77,11 @@ def test_create_user(instance):
     assert not user.is_admin
     assert type(user.id) is int
     assert user.is_admin is False
+
+def test_get_user(instance):
+    user = instance.get_user_by_name(test_user)
+    assert user is not None
+    assert user.username == test_user
 
 
 def test_change_user(instance):
@@ -173,6 +180,35 @@ def test_list_branches(instance):
     assert len(branches) > 0
     master = [b for b in branches if b.name == "master"]
     assert len(master) > 0
+
+
+def test_create_repo_labels(instance):
+    org = Organization.request(instance, test_org)
+    repo = org.get_repository(test_repo)
+    for i in range(0, 3):
+        repo.create_label(f"label-{i}", generate_random_color())
+    repot = org.get_repository(test_repo)
+    labels = repot.get_labels()
+    label_names = [l.name for l in labels]
+    for i in range(0, 3):
+        assert f"label-{i}" in label_names
+    title: Final[str] = "Label Test"
+    issue = Issue.create_issue(instance, repo, title , "Dis is a label test")
+    issue.set_labels([labels[1]])
+    issuet = {i.title: i for i in repo.get_issues()}
+    assert title in issuet
+    assert labels[1] in issuet[title].labels
+
+def test_create_org_labels(instance):
+    org = Organization.request(instance, test_org)
+    for i in range(0, 3):
+        org.create_label(f"label-{i}", generate_random_color())
+    del org
+    orgt = Organization.request(instance, test_org)
+    labels = orgt.get_labels()
+    label_names = [l.name for l in labels]
+    for i in range(0, 3):
+        assert f"label-{i}" in label_names
 
 
 def test_list_files_and_content(instance):
