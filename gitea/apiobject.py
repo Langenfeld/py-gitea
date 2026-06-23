@@ -794,20 +794,10 @@ class Milestone(ApiObject):
     }
 
     _patchable_fields = {
-        "allow_merge_commits",
-        "allow_rebase",
-        "allow_rebase_explicit",
-        "allow_squash_merge",
-        "archived",
-        "default_branch",
         "description",
-        "has_issues",
-        "has_pull_requests",
-        "has_wiki",
-        "ignore_whitespace_conflicts",
-        "name",
-        "private",
-        "website",
+        "due_on",
+        "state",
+        "title",
     }
 
     @classmethod
