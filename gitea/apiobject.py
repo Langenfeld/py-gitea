@@ -456,7 +456,7 @@ class Repository(ApiObject):
 
     def get_branches(self) -> List["Branch"]:
         """Get all the Branches of this Repository."""
-        results = self.gitea.requests_get(Repository.REPO_BRANCHES % (self.owner.username, self.name))
+        results = self.gitea.requests_get_paginated(Repository.REPO_BRANCHES % (self.owner.username, self.name))
         return [Branch.parse_response(self.gitea, result) for result in results]
 
     def add_branch(self, create_from: Branch, newname: str) -> "Branch":
