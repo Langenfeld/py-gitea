@@ -1045,7 +1045,7 @@ class Content(ReadonlyApiObject):
     def __eq__(self, other):
         if not isinstance(other, Team):
             return False
-        return self.repo == self.repo and self.sha == other.sha and self.name == other.name
+        return self.repo == other.repo and self.sha == other.sha and self.name == other.name
 
     def __hash__(self):
         return hash(self.repo) ^ hash(self.sha) ^ hash(self.name)

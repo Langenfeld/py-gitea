@@ -91,9 +91,9 @@ class Gitea:
     def __http_to_exception(self, status_code, message):
         self.logger.error(message)
         if status_code == 401:
-            raise Forbidden(message)
+            raise Unauthorized(message)
         if status_code == 403:
-            raise Unauthorized(f"Check your permissions and try again! ({message})")
+            raise Forbidden(f"Check your permissions and try again! ({message})")
         if status_code == 404:
             raise NotFoundException(message)
         if status_code == 409:
