@@ -195,7 +195,7 @@ class Gitea:
         return result["version"]
 
     def get_users(self) -> List[User]:
-        results = self.requests_get(Gitea.GET_USERS_ADMIN)
+        results = self.requests_get_paginated(Gitea.GET_USERS_ADMIN)
         return [User.parse_response(self, result) for result in results]
 
     def get_orgs(self, force_public=False):
