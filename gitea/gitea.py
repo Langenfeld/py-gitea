@@ -186,7 +186,7 @@ class Gitea:
     def __is_admin_user(self):
         try:
             u = self.get_user()
-        except Forbidden as e:
+        except Unauthorized as e:
             return False
         return u.is_admin
 
