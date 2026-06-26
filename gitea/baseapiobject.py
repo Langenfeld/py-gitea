@@ -29,7 +29,7 @@ class ReadonlyApiObject:
     _fields_to_parsers = {}
 
     @classmethod
-    def request(cls, gitea):
+    def request(cls, gitea: "Gitea"):
         if cls.API_OBJECT:
             return cls._request(gitea, [])
         else:

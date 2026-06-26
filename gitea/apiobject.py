@@ -1,32 +1,12 @@
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional, Union, Set
+from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override
 from dataclasses import dataclass, fields
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
 
-
-@dataclass(frozen=True)
-class RepoUnits:
-    code: str = "none"
-    issues: str = "none"
-    ext_issues: str = "none"
-    wiki: str = "none"
-    pulls: str = "none"
-    releases: str = "none"
-    ext_wiki: str = "none"
-    actions: str = "none"
-
-    def to_dict(self) -> dict[str, str]:
-        """Return the correctly prefixed (added "repo.") representation for gitea Repository unit Rights"""
-        return {f"repo.{field.name}": getattr(self, field.name) for field in fields(self)}
-
-    @classmethod
-    def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
-        """Parse all known repo units from the dictionary returned by the api"""
-        return RepoUnits(
-            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}}
-        )
+if TYPE_CHECKING:
+    from gitea import Gitea
 
 
 class Organization(ApiObject):
@@ -41,10 +21,10 @@ class Organization(ApiObject):
     ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
     ORG_LABELS = """/orgs/%s/labels"""
 
-    def __init__(self, gitea):
+    def __init__(self, gitea: "Gitea"):
         super().__init__(gitea)
 
-    def __eq__(self, other):
+    def __eq__(self, other: "Organization") -> bool:
         if not isinstance(other, Organization):
             return False
         return self.gitea == other.gitea and self.name == other.name
@@ -1162,3 +1142,25 @@ class MigrationServices:
     ONEDEV = "6"
     GITBUCKET = "7"
     CODEBASE = "8"
+
+@dataclass(frozen=True)
+class RepoUnits:
+    code: str = "none"
+    issues: str = "none"
+    ext_issues: str = "none"
+    wiki: str = "none"
+    pulls: str = "none"
+    releases: str = "none"
+    ext_wiki: str = "none"
+    actions: str = "none"
+
+    def to_dict(self) -> dict[str, str]:
+        """Return the correctly prefixed (added "repo.") representation for gitea Repository unit Rights"""
+        return {f"repo.{field.name}": getattr(self, field.name) for field in fields(self)}
+
+    @classmethod
+    def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
+        """Parse all known repo units from the dictionary returned by the api"""
+        return RepoUnits(
+            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}}
+        )
