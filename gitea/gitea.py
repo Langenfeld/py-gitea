@@ -202,7 +202,7 @@ class Gitea:
         path = "/orgs"
         if not force_public and self.__is_admin_user():
             path = "/admin/orgs"
-        results = self.requests_get(path)
+        results = self.requests_get_paginated(path)
         return [Organization.parse_response(self, result) for result in results]
 
     def get_user_by_email(self, email: str) -> User:
