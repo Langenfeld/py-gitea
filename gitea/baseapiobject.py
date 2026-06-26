@@ -1,17 +1,22 @@
+from typing import TYPE_CHECKING
+
 from .exceptions import (
     ObjectIsInvalid,
     MissiongEqualyImplementation,
     RawRequestEndpointMissing,
 )
-
+if TYPE_CHECKING:
+    from gitea import Gitea
 
 class ReadonlyApiObject:
-    def __init__(self, gitea):
+    API_OBJECT = ""
+
+    def __init__(self, gitea: "Gitea"):
         self.gitea = gitea
         self.deleted = False  # set if .delete was called, so that an exception is risen
 
     def __str__(self):
-        return "GiteaAPIObject (%s):" % (type(self))
+        return f"GiteaAPIObject ({type(self)})"
 
     def __eq__(self, other):
         """Compare only fields that are part of the gitea-data identity"""
@@ -25,31 +30,30 @@ class ReadonlyApiObject:
 
     @classmethod
     def request(cls, gitea):
-        if hasattr("API_OBJECT", cls):
-            return cls._request(gitea)
+        if cls.API_OBJECT:
+            return cls._request(gitea, [])
         else:
             raise RawRequestEndpointMissing()
 
     @classmethod
-    def _request(cls, gitea, args):
+    def _request(cls, gitea: "Gitea", args) -> "ReadonlyApiObject":
         result = cls._get_gitea_api_object(gitea, args)
         api_object = cls.parse_response(gitea, result)
         return api_object
 
     @classmethod
-    def _get_gitea_api_object(cls, gitea, args):
+    def _get_gitea_api_object(cls, gitea, args) -> dict:
         """Retrieving an object always as GET_API_OBJECT"""
         return gitea.requests_get(cls.API_OBJECT.format(**args))
 
     @classmethod
-    def parse_response(cls, gitea, result) -> "ReadonlyApiObject":
-        # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
+    def parse_response(cls, gitea, result: dict) -> "ReadonlyApiObject":
         api_object = cls(gitea)
         cls._initialize(gitea, api_object, result)
         return api_object
 
     @classmethod
-    def _initialize(cls, gitea, api_object, result):
+    def _initialize(cls, gitea, api_object, result: dict):
         for name, value in result.items():
             if name in cls._fields_to_parsers and value is not None:
                 parse_func = cls._fields_to_parsers[name]
@@ -83,7 +87,7 @@ class ApiObject(ReadonlyApiObject):
         self._dirty_fields = set()
 
     def commit(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     _parsers_to_fields = {}
 
