@@ -31,11 +31,18 @@ test_team = (
 test_repo = "repo_" + uuid.uuid4().hex[:8]
 
 
+def prepare_test_org(instance):
+    try:
+        return Organization.request(instance, test_org)
+    except NotFoundException:
+        user = instance.create_user(
+            test_user, test_user + "@example.org", "abcdefg1.23AB", send_notify=False
+        )
+        return instance.create_org(user, test_org, "some Description for longtests")
+
+
 def test_list_repos(instance):
-    user = instance.create_user(
-        test_user, test_user + "@example.org", "abcdefg1.23AB", send_notify=False
-    )
-    org = instance.create_org(user, test_org, "some Description for longtests")
+    org = prepare_test_org(instance)
     repos = org.get_repositories()
     assert len(repos) == 0
     # test a number of repository listings larger than the pagination number (default 50)
@@ -46,7 +53,7 @@ def test_list_repos(instance):
 
 
 def test_list_issue(instance):
-    org = Organization.request(instance, test_org)
+    org = prepare_test_org(instance)
     repo = instance.create_repo(
         org, test_repo, "Testing a huge number of Issues and how they are listed"
     )
@@ -59,3 +66,36 @@ def test_list_issue(instance):
         )
     issues = repo.get_issues()
     assert len(issues) > 98
+
+
+def test_list_branches(instance):
+    org = prepare_test_org(instance)
+    repo = instance.create_repo(
+        org, test_repo, "Testing a huge number of Branches and how they are listed"
+    )
+    branches = repo.get_branches()
+    master = [b for b in branches if b.name == "master"]
+    assert len(master) > 0
+
+    for x in range(0, 54):
+        repo.add_branch(master[0], "test_branch_" + str(x) + "_" + str(uuid.uuid4().hex[:8]))
+
+    branches = repo.get_branches()
+    assert len(branches) >= 53
+
+def test_list_tags(instance):
+    org = prepare_test_org(instance)
+    repo = instance.create_repo(
+        org, test_repo, "Testing a huge number of Tags and how they are listed"
+    )
+    branches = repo.get_branches()
+    master = [b for b in branches if b.name == "master"]
+    assert len(master) > 0
+
+    # Add all tags on last 'master' branch commit
+    for x in range(0, 54):
+        repo.add_tag("test_tag_" + str(x)  + "_" + str(uuid.uuid4().hex[:8]), master[0].commit["id"], "test tag")
+
+    tags = repo.get_tags()
+    assert len(tags) >= 53
+    
