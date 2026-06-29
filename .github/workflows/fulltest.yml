@@ -7,6 +7,7 @@ jobs:
     name: Test py-gitea
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.13","3.14"]
         gitea: ["1.24","1.23","1.25","1.26"]
