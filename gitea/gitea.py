@@ -107,7 +107,7 @@ class Gitea:
         combined_params.update(params)
         if sudo:
             combined_params["sudo"] = sudo.username
-        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=combined_params)
+        request = self.requests.get(self.__get_url(endpoint), headers=self.headers, params=combined_params, verify=self.requests.verify)
         if request.status_code in [200, 201]:
             return request
         message = f"Received status code: {request.status_code} ({request.url})"
@@ -142,7 +142,7 @@ class Gitea:
     def requests_put(self, endpoint: str, data: dict = None):
         if not data:
             data = {}
-        request = self.requests.put(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.put(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data), verify=self.requests.verify)
         if request.status_code in [200, 204]:
             return
         message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
@@ -151,14 +151,14 @@ class Gitea:
     def requests_delete(self, endpoint: str, data: dict = None):
         if not data:
             data = {}
-        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.delete(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data), verify=self.requests.verify)
         if request.status_code in [200, 204]:
             return
         message = f"Received status code: {request.status_code} ({request.url})"
         self.__http_to_exception(request.status_code, message)
 
     def requests_post(self, endpoint: str, data: dict):
-        request = self.requests.post(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.post(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data), verify=self.requests.verify)
         if request.status_code in [200, 201, 202]:
             return self.__parse_result(request)
         message = f"Received status code: {request.status_code} ({request.url})"
@@ -167,7 +167,7 @@ class Gitea:
         self.__http_to_exception(request.status_code, message)
 
     def requests_patch(self, endpoint: str, data: dict):
-        request = self.requests.patch(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
+        request = self.requests.patch(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data), verify=self.requests.verify)
         if request.status_code in [200, 201]:
             return self.__parse_result(request)
         message = f"Received status code: {request.status_code} ({request.url})"
