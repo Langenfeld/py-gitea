@@ -68,7 +68,7 @@ class ReadonlyApiObject:
 
     @classmethod
     def _add_read_property(cls, name: str, value: Any, api_object: "ApiObject"):
-        if not hasattr(api_object, name) or not isproperty(api_object, name):
+        if not hasattr(api_object, name):
             # Checking for property allows api objects to have the correct fields for typing
             #   being replaced by getters and setters a soon as such object is instantiated
             setattr(api_object, "_" + name, value)
