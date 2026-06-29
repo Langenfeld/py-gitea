@@ -1,15 +1,15 @@
 import logging
 import json
-from typing import List, Dict, Union
+from typing import Never
+
 from immutabledict import immutabledict
-import requests
+from requests import Response, Session
 import urllib3
 
 from .apiobject import User, Organization, Repository, Team, RepoUnits
 from .exceptions import (
     NotFoundException,
     ConflictException,
-    AlreadyExistsException,
     Unauthorized,
     Forbidden,
     Unprocessable,
@@ -55,7 +55,7 @@ class Gitea:
             "Content-type": "application/json",
         }
         self.url = gitea_url
-        self.requests = requests.Session()
+        self.requests = Session()
 
         if proxy:
             self.requests.proxies = {
@@ -82,13 +82,13 @@ class Gitea:
         return url
 
     @staticmethod
-    def __parse_result(result) -> Dict:
+    def __parse_result(result) -> dict:
         """Parses the result-JSON to a dict."""
         if result.text and len(result.text) > 3:
             return json.loads(result.text)
         return {}
 
-    def __http_to_exception(self, status_code, message):
+    def __http_to_exception(self, status_code, message) -> Never:
         self.logger.error(message)
         if status_code == 401:
             raise Unauthorized(message)
@@ -102,7 +102,8 @@ class Gitea:
             raise Unprocessable(message)
         raise GiteaApiException(message)
 
-    def _requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> requests.Response:
+    def _requests_get(self, endpoint: str, params: dict| None= None, sudo=None) -> Response:
+        params = params if params else {}
         combined_params = {}
         combined_params.update(params)
         if sudo:
@@ -113,7 +114,8 @@ class Gitea:
         message = f"Received status code: {request.status_code} ({request.url})"
         self.__http_to_exception(request.status_code, message)
 
-    def requests_get(self, endpoint: str, params=immutabledict(), sudo=None) -> dict:
+    def requests_get(self, endpoint: str, params: dict | None= None, sudo=None) -> dict:
+        params = params if params else {}
         request = self._requests_get(endpoint, params, sudo)
         return self.__parse_result(request)
 
@@ -139,18 +141,16 @@ class Gitea:
             if page_limit and page > page_limit:
                 return aggregated_result
 
-    def requests_put(self, endpoint: str, data: dict = None):
-        if not data:
-            data = {}
+    def requests_put(self, endpoint: str, data: dict | None = None):
+        data = data if data else {}
         request = self.requests.put(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
         if request.status_code in [200, 204]:
             return
         message = f"Received status code: {request.status_code} ({request.url}) {request.text}"
         self.__http_to_exception(request.status_code, message)
 
-    def requests_delete(self, endpoint: str, data: dict = None):
-        if not data:
-            data = {}
+    def requests_delete(self, endpoint: str, data: dict | None = None):
+        data = data if data else {}
         request = self.requests.delete(self.__get_url(endpoint), headers=self.headers, data=json.dumps(data))
         if request.status_code in [200, 204]:
             return
@@ -183,7 +183,7 @@ class Gitea:
         result = self.requests_get(Gitea.GET_USER)
         return User.parse_response(self, result)
 
-    def __is_admin_user(self):
+    def __is_admin_user(self) -> bool:
         try:
             u = self.get_user()
         except Unauthorized as e:
@@ -194,7 +194,7 @@ class Gitea:
         result = self.requests_get(Gitea.GITEA_VERSION)
         return result["version"]
 
-    def get_users(self) -> List[User]:
+    def get_users(self) -> list[User]:
         results = self.requests_get_paginated(Gitea.GET_USERS_ADMIN)
         return [User.parse_response(self, result) for result in results]
 
@@ -205,14 +205,14 @@ class Gitea:
         results = self.requests_get_paginated(path)
         return [Organization.parse_response(self, result) for result in results]
 
-    def get_user_by_email(self, email: str) -> User:
+    def get_user_by_email(self, email: str) -> User | None:
         users = self.get_users()
         for user in users:
             if user.email == email or email in user.emails:
                 return user
         return None
 
-    def get_user_by_name(self, username: str) -> User:
+    def get_user_by_name(self, username: str) -> User | None:
         users = self.get_users()
         for user in users:
             if user.username == username:
@@ -224,11 +224,11 @@ class Gitea:
         user_name: str,
         email: str,
         password: str,
-        full_name: str = None,
-        login_name: str = None,
-        change_pw=True,
-        send_notify=True,
-        source_id=0,
+        full_name: str | None = None,
+        login_name: str | None = None,
+        change_pw: bool=True,
+        send_notify: bool =True,
+        source_id: int=0,
     ) -> User:
         """Create User."""
         if not login_name:
@@ -248,7 +248,7 @@ class Gitea:
 
         self.logger.debug("Gitea post payload: %s", request_data)
         result = self.requests_post(Gitea.ADMIN_CREATE_USER, data=request_data)
-        if "id" in result:
+        if result and "id" in result:
             self.logger.info(
                 "Successfully created User %s <%s> (id %s)",
                 result["login"],
@@ -264,16 +264,16 @@ class Gitea:
 
     def create_repo(
         self,
-        repoOwner: Union[User, Organization],
+        repoOwner: User | Organization,
         repoName: str,
         description: str = "",
         private: bool = False,
-        autoInit=True,
-        gitignores: str = None,
-        license: str = None,
+        autoInit: bool = True,
+        gitignores: str | None = None,
+        license: str | None = None,
         readme: str = "Default",
-        issue_labels: str = None,
-        default_branch="master",
+        issue_labels: str| None = None,
+        default_branch: str="master",
     ) -> Repository:
         """Create a Repository as the administrator
 
@@ -301,11 +301,11 @@ class Gitea:
                 "default_branch": default_branch,
             },
         )
-        if "id" in result:
+        if result and "id" in result:
             self.logger.info("Successfully created Repository %s " % result["name"])
         else:
             self.logger.error(result["message"])
-            raise Exception("Repository not created... (gitea: %s)" % result["message"])
+            raise Exception(f"Repository not created... (gitea: {result["message"]})")
         return Repository.parse_response(self, result)
 
     def create_org(
@@ -344,7 +344,7 @@ class Gitea:
         permission: str = "read",
         can_create_org_repo: bool = False,
         includes_all_repositories: bool = False,
-        units: tuple[str] = (
+        units: tuple[str, ...] = (
             "repo.code",
             "repo.issues",
             "repo.ext_issues",

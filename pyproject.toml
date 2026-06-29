@@ -8,6 +8,7 @@ requires-python = ">=3.13"
 dependencies = [
     "requests",
     "immutabledict",
+    "urllib3"
 ]
 keywords = ["Gitea", "api", "wrapper"]
 license = "MIT"

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override
+from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override, overload
 from dataclasses import dataclass, fields
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
@@ -96,7 +96,7 @@ class Organization(ApiObject):
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
-        return Repository.parse_response(self, result)
+        return Repository.parse_response(self.gitea, result)
 
     def get_repositories(self) -> List["Repository"]:
         results = self.gitea.requests_get_paginated(Organization.ORG_REPOS_REQUEST % self.username)
@@ -415,7 +415,8 @@ class Repository(ApiObject):
     }
 
     @classmethod
-    def request(cls, gitea: "Gitea", owner: str, name: str):
+    def request(cls, gitea: "Gitea", owner: "str | User | Organization" , name: str):
+        owner = get_username(owner)
         return cls._request(gitea, {"owner": owner, "name": name})
 
     _patchable_fields = {
@@ -530,20 +531,20 @@ class Repository(ApiObject):
         """Delete a topic to the repository"""
         self.gitea.requests_delete(Repository.REPO_TOPIC % (self.owner.username, self.name, topic))
 
-    def get_user_time(self, username) -> float:
-        if isinstance(username, User):
-            username = username.username
-        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, username))
+    def get_user_time(self, user: User | str) -> float:
+        user = get_username(user)
+        results = self.gitea.requests_get(Repository.REPO_USER_TIME % (self.owner.username, self.name, user))
         time = sum(r["time"] for r in results)
         return time
 
     def get_full_name(self) -> str:
         return self.owner.username + "/" + self.name
 
-    def create_issue(self, title, assignees=frozenset(), description="") -> ApiObject:
+    def create_issue(self, title, assignees: set[User] | None = None , description="") -> ApiObject:
+        assignees = assignees if assignees else set()
         #TODO: unify with the ISSUE variant of this
         data = {
-            "assignees": assignees,
+            "assignees": list(assignees),
             "body": description,
             "closed": False,
             "title": title,
@@ -883,10 +884,10 @@ class Issue(ApiObject):
     def __eq__(self, other):
         if not isinstance(other, Issue):
             return False
-        return self.repo == other.repo and self.id == other.id
+        return self.repository == other.repository and self.id == other.id
 
     def __hash__(self):
-        return hash(self.repo) ^ hash(self.id)
+        return hash(self.repository) ^ hash(self.id)
 
     _fields_to_parsers = {
         "milestone": lambda gitea, m: Milestone.parse_response(gitea, m),
@@ -1164,3 +1165,12 @@ class RepoUnits:
         return RepoUnits(
             **{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}}
         )
+
+def get_username(user: "str | User | Organization", allow_orgs: bool = True) -> str:
+    if isinstance(user, str):
+        return user
+    elif isinstance(user, User):
+        return user.full_name
+    elif allow_orgs:
+        return user.name
+    raise TypeError(f'Object of type {type(user)} is not a valid owner of anything')

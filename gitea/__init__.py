@@ -1,7 +1,9 @@
 from .gitea import (
-    Gitea,
+    Gitea
+)
+from .exceptions import (
     NotFoundException,
-    AlreadyExistsException,
+    AlreadyExistsException
 )
 from .apiobject import (
     User,

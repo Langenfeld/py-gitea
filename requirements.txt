@@ -1,3 +1,4 @@
 requests[socks]
 pytest
 immutabledict
+urllib3
