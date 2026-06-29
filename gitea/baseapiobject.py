@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 from .exceptions import (
     ObjectIsInvalid,
-    MissiongEqualyImplementation,
+    MissingEqualyImplementation,
     RawRequestEndpointMissing,
 )
 if TYPE_CHECKING:
@@ -19,11 +19,11 @@ class ReadonlyApiObject:
 
     def __eq__(self, other: "ApiObject"):
         """Compare only fields that are part of the gitea-data identity"""
-        raise MissiongEqualyImplementation()
+        raise MissingEqualyImplementation()
 
     def __hash__(self):
         """Hash only fields that are part of the gitea-data identity"""
-        raise MissiongEqualyImplementation()
+        raise MissingEqualyImplementation()
 
     _fields_to_parsers = {}
 
