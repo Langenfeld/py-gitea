@@ -1,7 +1,4 @@
 from typing import TYPE_CHECKING, Any
-
-from mypy.server.objgraph import isproperty
-
 from .exceptions import (
     ObjectIsInvalid,
     MissiongEqualyImplementation,
@@ -64,7 +61,7 @@ class ReadonlyApiObject:
             cls._add_read_property(name, value, api_object)
         # add all patchable fields missing in the request to be writable
         for name in cls._fields_to_parsers.keys():
-            if not hasattr(api_object, name) or not isproperty(api_object, name):
+            if not hasattr(api_object, name):
                 # Checking for property allows api objects to have the correct fields for typing
                 #   being replaced by getters and setters a soon as such object is instantiated
                 cls._add_read_property(name, None, api_object)
