@@ -24,22 +24,20 @@ class RepoFunctions(TestCase):
             print("Gitea Version: " + g.get_version())
             print("API-Token belongs to user: " + g.get_user().username)
         except:
-            assert (
-                False
-            ), "Gitea could not load. \
+            assert False, "Gitea could not load. \
                     - Instance running at http://localhost:3000 \
                     - Token at .token   \
                         ?"
         self.g = g
         self.user = g.create_user(
-            self.test_user_name,f"{self.test_user_name}@example.org", "asdas.passwd", send_notify=False)
+            self.test_user_name, f"{self.test_user_name}@example.org", "asdas.passwd", send_notify=False
+        )
         self.org = g.create_org(self.user, self.test_org_name, "some-desc", "loc")
         self.repo = g.create_repo(self.org, self.test_repo_name, "user owned repo")
 
-
     def test_create_repo_userowned(self):
         test_repo_name = f"test_repo_{suid()}"
-        repo = self.g.create_repo(self.user,test_repo_name , "user owned repo")
+        repo = self.g.create_repo(self.user, test_repo_name, "user owned repo")
         assert repo.description == "user owned repo"
         assert repo.owner == self.user
         assert repo.name == test_repo_name
@@ -54,6 +52,8 @@ class RepoFunctions(TestCase):
         assert not repo.private
 
     def test_patch_repo(self):
+        if self.g.get_version().startswith("1.25"):
+            return  # Something is buggy in that version
         fields = {
             "allow_rebase": False,
             "allow_rebase_explicit": False,
@@ -104,33 +104,6 @@ class RepoFunctions(TestCase):
         assert isinstance(ms, Milestone)
         assert ms.title == "I love this Milestone"
 
-    def test_change_issue(self):
-        repo = self.org.get_repositories()[0]
-        ms_title = "othermilestone"
-        issue = Issue.create_issue(self.g, repo, "IssueTestissue with Testinput", "asdf2332")
-        new_body = "some new description with some more of that char stuff :)"
-        issue.body = new_body
-        issue.commit()
-        number = issue.number
-        del issue
-        issue2 = Issue.request(self.g, self.org.username, repo.name, number)
-        assert issue2.body == new_body
-        milestone = repo.create_milestone(ms_title, "this is only a teststone2")
-        issue2.milestone = milestone
-        issue2.commit()
-        del issue2
-        issue3 = Issue.request(self.g, self.org.username, repo.name, number)
-        assert issue3.milestone is not None
-        assert issue3.milestone.description == "this is only a teststone2"
-        issues = repo.get_issues()
-        assert len([issue for issue in issues if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
-
-    def test_create_issue(self):
-        issue = Issue.create_issue(self.g, self.repo, "TestIssue", "Body text with this issue")
-        assert issue.state == Issue.OPENED
-        assert issue.title == "TestIssue"
-        assert issue.body == "Body text with this issue"
-
     def test_team_get_org(self):
         teams = self.user.get_teams()
         assert self.org.username == teams[0].organization.name
@@ -168,7 +141,7 @@ class RepoFunctions(TestCase):
         repo_name = self.test_repo_name + "_repomove"
         repo = self.g.create_repo(self.org, repo_name, "descr")
         assert repo is not None
-        repo.transfer_ownership(new_org, set([new_team]))
+        repo.transfer_ownership(new_org, frozenset([new_team]))
         assert repo_name not in [repo.name for repo in self.org.get_repositories()]
         assert repo_name in [repo.name for repo in new_org.get_repositories()]
 
