@@ -33,8 +33,8 @@ class Gitea:
         gitea_url: str,
         token_text=None,
         auth=None,
-        verify=True,
-        log_level="INFO",
+        verify: bool = True,
+        log_level: str = "INFO",
         # example: "socks5h://127.0.0.1:9050"
         proxy=None,
     ):
@@ -102,7 +102,7 @@ class Gitea:
             raise Unprocessable(message)
         raise GiteaApiException(message)
 
-    def _requests_get(self, endpoint: str, params: dict| None= None, sudo=None) -> Response:
+    def _requests_get(self, endpoint: str, params: dict | None = None, sudo=None) -> Response:
         params = params if params else {}
         combined_params = {}
         combined_params.update(params)
@@ -114,7 +114,7 @@ class Gitea:
         message = f"Received status code: {request.status_code} ({request.url})"
         self.__http_to_exception(request.status_code, message)
 
-    def requests_get(self, endpoint: str, params: dict | None= None, sudo=None) -> dict:
+    def requests_get(self, endpoint: str, params: dict | None = None, sudo=None) -> dict:
         params = params if params else {}
         request = self._requests_get(endpoint, params, sudo)
         return self.__parse_result(request)
@@ -122,7 +122,7 @@ class Gitea:
     def requests_get_paginated(
         self,
         endpoint: str,
-        params=immutabledict(),
+        params: immutabledict[str, str] = immutabledict(),
         sudo=None,
         page_key: str = "page",
         page_limit: int = 0,
@@ -215,7 +215,7 @@ class Gitea:
     def get_user_by_name(self, username: str) -> User | None:
         users = self.get_users()
         for user in users:
-            if user.username == username:
+            if user.login == username:
                 return user
         return None
 
@@ -226,9 +226,9 @@ class Gitea:
         password: str,
         full_name: str | None = None,
         login_name: str | None = None,
-        change_pw: bool=True,
-        send_notify: bool =True,
-        source_id: int=0,
+        change_pw: bool = True,
+        send_notify: bool = True,
+        source_id: int = 0,
     ) -> User:
         """Create User."""
         if not login_name:
@@ -272,8 +272,8 @@ class Gitea:
         gitignores: str | None = None,
         license: str | None = None,
         readme: str = "Default",
-        issue_labels: str| None = None,
-        default_branch: str="master",
+        issue_labels: str | None = None,
+        default_branch: str = "master",
     ) -> Repository:
         """Create a Repository as the administrator
 
@@ -311,17 +311,17 @@ class Gitea:
     def create_org(
         self,
         owner: User,
-        orgName: str,
+        org_name: str,
         description: str,
-        location="",
-        website="",
-        full_name="",
+        location: str = "",
+        website: str = "",
+        full_name: str = "",
     ) -> Organization:
         assert isinstance(owner, User)
         result = self.requests_post(
             Gitea.CREATE_ORG % owner.username,
             data={
-                "username": orgName,
+                "username": org_name,
                 "description": description,
                 "location": location,
                 "website": website,

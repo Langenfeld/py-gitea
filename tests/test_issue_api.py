@@ -35,17 +35,43 @@ class BasicGiteaFunctions(TestCase):
             print("Gitea Version: " + g.get_version())
             print("API-Token belongs to user: " + g.get_user().username)
         except:
-            assert (
-                False
-            ), "Gitea could not load. \
+            assert False, "Gitea could not load. \
                     - Instance running at http://localhost:3000 \
                     - Token at .token   \
                         ?"
         self.g = g
         self.user = g.create_user(
-            self.test_user_name,f"{self.test_user_name}@example.org", "asdas.passwd", send_notify=False)
+            self.test_user_name, f"{self.test_user_name}@example.org", "asdas.passwd", send_notify=False
+        )
         self.org = g.create_org(self.user, self.test_org_name, "some-desc", "loc")
         self.repo = g.create_repo(self.org, self.test_repo_name, "user owned repo")
+
+    def test_change_issue(self):
+        repo = self.org.get_repositories()[0]
+        ms_title = "othermilestone"
+        issue = Issue.create_issue(self.g, repo, "IssueTestissue with Testinput", "asdf2332")
+        new_body = "some new description with some more of that char stuff :)"
+        issue.body = new_body
+        issue.commit()
+        number = issue.number
+        del issue
+        issue2 = Issue.request(self.g, self.org.username, repo.name, number)
+        assert issue2.body == new_body
+        milestone = repo.create_milestone(ms_title, "this is only a teststone2")
+        issue2.milestone = milestone
+        issue2.commit()
+        del issue2
+        issue3 = Issue.request(self.g, self.org.username, repo.name, number)
+        assert issue3.milestone is not None
+        assert issue3.milestone.description == "this is only a teststone2"
+        issues = repo.get_issues()
+        assert len([issue for issue in issues if issue.milestone is not None and issue.milestone.title == ms_title]) > 0
+
+    def test_create_issue(self):
+        issue = Issue.create_issue(self.g, self.repo, "TestIssue", "Body text with this issue")
+        assert issue.state == Issue.OPENED
+        assert issue.title == "TestIssue"
+        assert issue.body == "Body text with this issue"
 
     def test_create_repo_labels(self):
         for i in range(0, 3):
@@ -56,7 +82,7 @@ class BasicGiteaFunctions(TestCase):
         for i in range(0, 3):
             assert f"label-{i}" in label_names
         title: Final[str] = "Label Test"
-        issue = Issue.create_issue(self.g, self.repo, title , "Dis is a label test")
+        issue = Issue.create_issue(self.g, self.repo, title, "Dis is a label test")
         issue.set_labels([labels[1]])
         issuet = {i.title: i for i in self.repo.get_issues()}
         assert title in issuet
