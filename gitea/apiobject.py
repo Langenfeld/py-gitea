@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override, overload
+from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override, overload, Any
 from dataclasses import dataclass, fields
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
@@ -20,6 +20,19 @@ class Organization(ApiObject):
     ORG_IS_MEMBER = """/orgs/%s/members/%s"""  # <org>, <username>
     ORG_HEATMAP = """/users/%s/heatmap"""  # <username>
     ORG_LABELS = """/orgs/%s/labels"""
+
+    # Fields of Organisation to enable completion/typechecking
+    id: int
+    name: str
+    full_name: str
+    username: str
+    avatar_url: str
+    description: str
+    email: str
+    location: str
+    website: str
+    repo_admin_change_team_access: str
+    visibility: str
 
     def __init__(self, gitea: "Gitea"):
         super().__init__(gitea)
@@ -65,10 +78,10 @@ class Organization(ApiObject):
         description: str = "",
         private: bool = False,
         autoInit=True,
-        gitignores: str = None,
-        license: str = None,
+        gitignores: str | None = None,
+        license: str | None = None,
         readme: str = "Default",
-        issue_labels: str = None,
+        issue_labels: str | None = None,
         default_branch="master",
     ):
         """Create an organization Repository
@@ -196,6 +209,30 @@ class User(ApiObject):
     ADMIN_DELETE_USER = """/admin/users/%s"""  # <username>
     ADMIN_EDIT_USER = """/admin/users/{username}"""  # <username>
     USER_HEATMAP = """/users/%s/heatmap"""  # <username>
+
+    # Fields of Organisation to enable completion/typechecking
+    active: bool
+    avatar_url: str
+    created: str
+    description: str
+    email: str
+    followers_count: int
+    following_count: int
+    full_name: str
+    html_url: str
+    id: int
+    is_admin: bool
+    language: str
+    last_login: str
+    location: str
+    login: str
+    login_name: str
+    prohibit_login:str
+    restricted: str
+    source_id: int
+    starred_repos_count: int
+    visibility: str
+    website: str
 
     def __init__(self, gitea):
         super().__init__(gitea)
@@ -333,6 +370,18 @@ class User(ApiObject):
 
 
 class Branch(ReadonlyApiObject):
+
+    # Fields of Branch to enable completion/typechecking
+    commit: Any
+    effective_branch_protection_name: str
+    enable_status_check : bool
+    name: str
+    protected: bool
+    required_approvals: int
+    status_check_contexts: Any
+    user_can_merge: bool
+    user_can_push: bool
+
     def __init__(self, gitea):
         super().__init__(gitea)
 
@@ -394,6 +443,9 @@ class Repository(ApiObject):
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
     REPO_LABELS = """/repos/%s/%s/labels"""
+
+    # Fields for typechecking
+
 
     def __init__(self, gitea):
         super().__init__(gitea)
