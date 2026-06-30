@@ -7,6 +7,7 @@ from gitea import (
     User,
     Organization,
     Repository,
+    Branch
 )
 from gitea import NotFoundException
 
