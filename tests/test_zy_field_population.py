@@ -1,8 +1,5 @@
 from typing import Any, Type
 from unittest import TestCase
-import pytest
-from mypyc.ir.ops import Branch
-
 from utils import suid
 
 from gitea import (
