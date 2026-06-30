@@ -1,3 +1,4 @@
+from typing import Any, Type
 from unittest import TestCase
 import pytest
 from mypyc.ir.ops import Branch
@@ -38,8 +39,14 @@ class BasicGiteaFunctions(TestCase):
         self.repo = g.create_repo(self.org, self.test_repo_name, "user owned repo")
 
     def __check_fields(self, cls, object):
-        for field in cls.__annotations__:
-            assert getattr(object, field) is not None
+        for field, t in cls.__annotations__.items():
+            v = getattr(object, field)
+            assert v is not None
+            print(f"{field} as {t}: {getattr(object, field)}")
+            if t is Any:
+                continue
+            if isinstance(t, type):
+                assert isinstance(v, t)
 
     def test_user_field_population(self):
         user = self.g.get_user_by_name(self.test_user_name)
@@ -54,3 +61,8 @@ class BasicGiteaFunctions(TestCase):
     def test_branch_field_population(self):
         branches = self.repo.get_branches()
         self.__check_fields(Branch, branches[0])
+        # TODO: check fields in tags in commits
+
+    def test_repo_field_population(self):
+        repo = self.org.get_repository(self.test_repo_name)
+        self.__check_fields(Repository, repo)

@@ -31,7 +31,7 @@ class Organization(ApiObject):
     email: str
     location: str
     website: str
-    repo_admin_change_team_access: str
+    repo_admin_change_team_access: bool
     visibility: str
 
     def __init__(self, gitea: "Gitea"):
@@ -227,8 +227,8 @@ class User(ApiObject):
     location: str
     login: str
     login_name: str
-    prohibit_login:str
-    restricted: str
+    prohibit_login: bool
+    restricted: bool
     source_id: int
     starred_repos_count: int
     visibility: str
@@ -368,7 +368,6 @@ class User(ApiObject):
         results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
-
 class Branch(ReadonlyApiObject):
 
     # Fields of Branch to enable completion/typechecking
@@ -402,8 +401,15 @@ class Branch(ReadonlyApiObject):
     def request(cls, gitea: "Gitea", owner: str, repo: str, ref: str):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
-
 class Tag(ReadonlyApiObject):
+
+    commit: Any
+    id: int
+    message: str
+    name : str
+    tarball_url: str
+    zipball_url: str
+
     def __init__(self, gitea):
         super().__init__(gitea)
 
@@ -445,7 +451,73 @@ class Repository(ApiObject):
     REPO_LABELS = """/repos/%s/%s/labels"""
 
     # Fields for typechecking
-
+    allow_fast_forward_only_merge: bool
+    allow_manual_merge: bool
+    allow_merge_commits: bool
+    allow_rebase: bool
+    allow_rebase_explicit: bool
+    allow_rebase_update: bool
+    allow_squash_merge: bool
+    archived: bool
+    archived_at: datetime
+    autodetect_manual_merge: Any
+    avatar_url: str
+    branch_count: int
+    clone_url: Any
+    created_at: Any
+    default_allow_maintainer_edit: Any
+    default_branch: Any
+    default_delete_branch_after_merge: Any
+    default_merge_style: Any
+    #default_target_branch: Any
+    description: Any
+    empty: Any
+    #external_tracker: Any
+    #external_wiki: Any
+    fork: Any
+    forks_count: Any
+    full_name: Any
+    has_actions: Any
+    has_code: Any
+    has_issues: Any
+    has_packages: Any
+    has_projects: Any
+    has_pull_requests: Any
+    has_releases: Any
+    has_wiki: Any
+    html_url: Any
+    id: Any
+    ignore_whitespace_conflicts: Any
+    internal: Any
+    internal_tracker: Any
+    language: Any
+    languages_url: Any
+    licenses: Any
+    link: Any
+    mirror: Any
+    mirror_interval: Any
+    mirror_updated: Any
+    name: Any
+    object_format_name: Any
+    open_issues_count: Any
+    open_pr_counter: Any
+    original_url: Any
+    owner: "User"
+    #parent: Any
+    permissions: Any
+    private: Any
+    projects_mode: Any
+    release_counter: Any
+    #repo_transfer: Any
+    size: Any
+    ssh_url: Any
+    stars_count: Any
+    template: Any
+    topics: Any
+    updated_at: Any
+    url: Any
+    watchers_count: Any
+    website: Any
 
     def __init__(self, gitea):
         super().__init__(gitea)
@@ -464,6 +536,7 @@ class Repository(ApiObject):
         if r["email"] == ""
         else User.parse_response(gitea, r),
         "updated_at": lambda gitea, t: Util.convert_time(t),
+        "archived_at": lambda gitea, t: Util.convert_time(t),
     }
 
     @classmethod
