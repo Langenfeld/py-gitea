@@ -4,8 +4,10 @@ from .exceptions import (
     MissingEqualyImplementation,
     RawRequestEndpointMissing,
 )
+
 if TYPE_CHECKING:
     from gitea import Gitea
+
 
 class ReadonlyApiObject:
     API_OBJECT = ""
@@ -47,13 +49,19 @@ class ReadonlyApiObject:
 
     # noinspection PyTypeChecker
     @classmethod
-    def parse_response(cls, gitea: "Gitea", result: dict) -> "ReadonlyApiObject":
+    def parse_response(
+        cls, gitea: "Gitea", result: dict, inject_fields: dict[str, Any] | None = None
+    ) -> "ReadonlyApiObject":
         api_object: "ApiObject" = cls(gitea)
-        cls._initialize(gitea, api_object, result)
+        cls._initialize(gitea, api_object, result, inject_fields)
         return api_object
 
     @classmethod
-    def _initialize(cls, gitea: "Gitea", api_object: "ApiObject", result: dict):
+    def _initialize(
+        cls, gitea: "Gitea", api_object: "ApiObject", result: dict, inject_fields: dict[str, Any] | None = None
+    ):
+        inject_fields = inject_fields or {}
+        # add all fields that are parsable from the request
         for name, value in result.items():
             if name in cls._fields_to_parsers and value is not None:
                 parse_func = cls._fields_to_parsers[name]
@@ -65,6 +73,10 @@ class ReadonlyApiObject:
                 # Checking for property allows api objects to have the correct fields for typing
                 #   being replaced by getters and setters a soon as such object is instantiated
                 cls._add_read_property(name, None, api_object)
+        # add fields injected additionally (usually to keep connection to e.g. repositories and owners)
+        for name, value in inject_fields.items():
+            if not hasattr(api_object, name):
+                cls._add_read_property(name, value, api_object)
 
     @classmethod
     def _add_read_property(cls, name: str, value: Any, api_object: "ApiObject"):
@@ -81,6 +93,7 @@ class ReadonlyApiObject:
         if self.deleted:
             raise ObjectIsInvalid()
         return getattr(self, "_" + name)
+
 
 class ApiObject(ReadonlyApiObject):
     _patchable_fields = set()
@@ -105,8 +118,8 @@ class ApiObject(ReadonlyApiObject):
         return dirty_fields_values
 
     @classmethod
-    def _initialize(cls, gitea, api_object, result):
-        super()._initialize(gitea, api_object, result)
+    def _initialize(cls, gitea, api_object, result, inject_fields: dict[str, Any] | None = None):
+        super()._initialize(gitea, api_object, result, inject_fields)
         for name in cls._patchable_fields:
             cls._add_write_property(name, None, api_object)
 

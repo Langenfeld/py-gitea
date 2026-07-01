@@ -22,17 +22,17 @@ class Organization(ApiObject):
     ORG_LABELS = """/orgs/%s/labels"""
 
     # Fields of Organisation to enable completion/typechecking
-    id: int
-    name: str
-    full_name: str
-    username: str
     avatar_url: str
     description: str
     email: str
+    full_name: str
+    id: int
     location: str
-    website: str
+    name: str
     repo_admin_change_team_access: bool
+    username: str
     visibility: str
+    website: str
 
     def __init__(self, gitea: "Gitea"):
         super().__init__(gitea)
@@ -40,23 +40,14 @@ class Organization(ApiObject):
     def __eq__(self, other: "Organization") -> bool:
         if not isinstance(other, Organization):
             return False
-        return self.gitea == other.gitea and self.name == other.name
+        return self.gitea == other.gitea and self.username == other.username
 
     def __hash__(self):
-        return hash(self.gitea) ^ hash(self.name)
+        return hash(self.gitea) ^ hash(self.username)
 
     @classmethod
     def request(cls, gitea: "Gitea", name: str) -> "Organization":
         return cls._request(gitea, {"name": name})
-
-    @classmethod
-    def parse_response(cls, gitea, result) -> "Organization":
-        api_object = super().parse_response(gitea, result)
-        # add "name" field to make this behave similar to users for gitea < 1.18
-        # also necessary for repository-owner when org is repo owner
-        if not hasattr(api_object, "name"):
-            Organization._add_read_property("name", result["username"], api_object)
-        return api_object
 
     _patchable_fields = {
         "description",
@@ -74,15 +65,15 @@ class Organization(ApiObject):
 
     def create_repo(
         self,
-        repoName: str,
+        repo_name: str,
         description: str = "",
         private: bool = False,
-        autoInit=True,
+        auto_init: bool = True,
         gitignores: str | None = None,
         license: str | None = None,
         readme: str = "Default",
         issue_labels: str | None = None,
-        default_branch="master",
+        default_branch: str = "master",
     ):
         """Create an organization Repository
 
@@ -93,10 +84,10 @@ class Organization(ApiObject):
         result = self.gitea.requests_post(
             f"/orgs/{self.name}/repos",
             data={
-                "name": repoName,
+                "name": repo_name,
                 "description": description,
                 "private": private,
-                "auto_init": autoInit,
+                "auto_init": auto_init,
                 "gitignores": gitignores,
                 "license": license,
                 "issue_labels": issue_labels,
@@ -190,9 +181,7 @@ class Organization(ApiObject):
             },
         )
         if "id" in result:
-            self.gitea.logger.info(
-                "Successfully created Label %s " % result["name"]
-            )
+            self.gitea.logger.info("Successfully created Label %s " % result["name"])
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Label not created... (gitea: %s)" % result["message"])
@@ -201,6 +190,7 @@ class Organization(ApiObject):
     def get_labels(self) -> List["Label"]:
         results = self.gitea.requests_get(Organization.ORG_LABELS % self.name)
         return [Label.parse_response(self.gitea, result) for result in results]
+
 
 class User(ApiObject):
     API_OBJECT = """/users/{name}"""  # <org>
@@ -225,8 +215,8 @@ class User(ApiObject):
     language: str
     last_login: str
     location: str
-    login: str
-    login_name: str
+    login: str  # login of the user, same as 'username'
+    login_name: str  # identifier of the user, provided by the external authenticator (if configured)
     prohibit_login: bool
     restricted: bool
     source_id: int
@@ -294,12 +284,12 @@ class User(ApiObject):
         repoName: str,
         description: str = "",
         private: bool = False,
-        autoInit=True,
-        gitignores: str = None,
-        license: str = None,
+        autoInit: bool = True,
+        gitignores: str | None = None,
+        license: str | None = None,
         readme: str = "Default",
-        issue_labels: str = None,
-        default_branch="master",
+        issue_labels: str | None = None,
+        default_branch: str = "master",
     ):
         """Create a user Repository
 
@@ -326,7 +316,7 @@ class User(ApiObject):
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Repository not created... (gitea: %s)" % result["message"])
-        return Repository.parse_response(self, result)
+        return Repository.parse_response(self.gitea, result)
 
     def get_repositories(self) -> List["Repository"]:
         """Get all Repositories owned by this User."""
@@ -348,7 +338,7 @@ class User(ApiObject):
     def get_accessible_repos(self) -> List["Repository"]:
         """Get all Repositories accessible by the logged in User."""
         results = self.gitea.requests_get("/user/repos", sudo=self)
-        return [Repository.parse_response(self, result) for result in results]
+        return [Repository.parse_response(self.gitea, result) for result in results]
 
     def __request_emails(self):
         result = self.gitea.requests_get(User.USER_MAIL % self.login)
@@ -368,12 +358,13 @@ class User(ApiObject):
         results = [(datetime.fromtimestamp(result["timestamp"]), result["contributions"]) for result in results]
         return results
 
+
 class Branch(ReadonlyApiObject):
 
     # Fields of Branch to enable completion/typechecking
     commit: Any
     effective_branch_protection_name: str
-    enable_status_check : bool
+    enable_status_check: bool
     name: str
     protected: bool
     required_approvals: int
@@ -401,12 +392,13 @@ class Branch(ReadonlyApiObject):
     def request(cls, gitea: "Gitea", owner: str, repo: str, ref: str):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
+
 class Tag(ReadonlyApiObject):
 
     commit: Any
     id: int
     message: str
-    name : str
+    name: str
     tarball_url: str
     zipball_url: str
 
@@ -469,11 +461,11 @@ class Repository(ApiObject):
     default_branch: Any
     default_delete_branch_after_merge: Any
     default_merge_style: Any
-    #default_target_branch: Any
+    # default_target_branch: Any
     description: Any
     empty: Any
-    #external_tracker: Any
-    #external_wiki: Any
+    # external_tracker: Any
+    # external_wiki: Any
     fork: Any
     forks_count: Any
     full_name: Any
@@ -503,12 +495,12 @@ class Repository(ApiObject):
     open_pr_counter: Any
     original_url: Any
     owner: "User"
-    #parent: Any
+    # parent: Any
     permissions: Any
     private: Any
     projects_mode: Any
     release_counter: Any
-    #repo_transfer: Any
+    # repo_transfer: Any
     size: Any
     ssh_url: Any
     stars_count: Any
@@ -532,17 +524,16 @@ class Repository(ApiObject):
 
     _fields_to_parsers = {
         # dont know how to tell apart user and org as owner except form email being empty.
-        "owner": lambda gitea, r: Organization.parse_response(gitea, r)
-        if r["email"] == ""
-        else User.parse_response(gitea, r),
+        "owner": lambda gitea, r: (
+            Organization.parse_response(gitea, r) if r["email"] == "" else User.parse_response(gitea, r)
+        ),
         "updated_at": lambda gitea, t: Util.convert_time(t),
         "archived_at": lambda gitea, t: Util.convert_time(t),
     }
 
     @classmethod
-    def request(cls, gitea: "Gitea", owner: "str | User | Organization" , name: str):
-        owner = get_username(owner)
-        return cls._request(gitea, {"owner": owner, "name": name})
+    def request(cls, gitea: "Gitea", owner: "str | User | Organization", name: str):
+        return cls._request(gitea, {"owner": get_username(owner), "name": name})
 
     _patchable_fields = {
         "allow_manual_merge",
@@ -640,6 +631,11 @@ class Repository(ApiObject):
             issues.append(issue)
         return issues
 
+    def get_milestones(self) -> list["Milestone"]:
+        result = self.gitea.requests_get_paginated(f"/repos/{get_username(self.owner)}/{self.name}/milestones")
+        inject = {"repo": self}
+        return [Milestone.parse_response(self.gitea, result, inject) for result in result]
+
     def get_times(self):
         results = self.gitea.requests_get(Repository.REPO_TIMES % (self.owner.username, self.name))
         return results
@@ -665,9 +661,9 @@ class Repository(ApiObject):
     def get_full_name(self) -> str:
         return self.owner.username + "/" + self.name
 
-    def create_issue(self, title, assignees: set[User] | None = None , description="") -> ApiObject:
+    def create_issue(self, title, assignees: set[User] | None = None, description="") -> ApiObject:
         assignees = assignees if assignees else set()
-        #TODO: unify with the ISSUE variant of this
+        # TODO: unify with the ISSUE variant of this
         data = {
             "assignees": list(assignees),
             "body": description,
@@ -680,7 +676,9 @@ class Repository(ApiObject):
         )
         return Issue.parse_response(self.gitea, result)
 
-    def create_milestone(self, title: str, description: str, due_date: str = None, state: str = "open") -> "Milestone":
+    def create_milestone(
+        self, title: str, description: str, due_date: str | None = None, state: str = "open"
+    ) -> "Milestone":
         url = Repository.REPO_MILESTONES.format(owner=self.owner.username, repo=self.name)
         data = {"title": title, "description": description, "state": state}
         if due_date:
@@ -706,20 +704,19 @@ class Repository(ApiObject):
         url = f"/repos/{self.owner.username}/{self.name}/hooks/{id}"
         self.gitea.requests_delete(url)
 
-    def is_collaborator(self, username) -> bool:
-        if isinstance(username, User):
-            username = username.username
+    def is_collaborator(self, user: str | User) -> bool:
+        # TODO: Check this, this does not look like a proper request
         try:
             # returns 204 if its ok, 404 if its not
-            self.gitea.requests_get(Repository.REPO_IS_COLLABORATOR % (self.owner.username, self.name, username))
+            self.gitea.requests_get(
+                Repository.REPO_IS_COLLABORATOR % (self.owner.username, self.name, get_username(user, allow_orgs=False))
+            )
             return True
         except:
             return False
 
     def get_user_permission(self, username) -> "UserRepoPermission":
-        if isinstance(username, User):
-            username = username.username
-        url = Repository.REPO_PERMISSION % (self.owner.username, self.name, username)
+        url = Repository.REPO_PERMISSION % (self.owner.username, self.name, get_username(username, allow_orgs=False))
         response = self.gitea.requests_get(url)
         perm = UserRepoPermission.parse_response(self.gitea, response)
         return perm
@@ -819,16 +816,14 @@ class Repository(ApiObject):
             },
         )
         if "id" in result:
-            self.gitea.logger.info(
-                "Successfully created Label %s " % result["name"]
-            )
+            self.gitea.logger.info("Successfully created Label %s " % result["name"])
         else:
             self.gitea.logger.error(result["message"])
             raise Exception("Label not created... (gitea: %s)" % result["message"])
         return Label.parse_response(self.gitea, result)
 
     def get_labels(self) -> List["Label"]:
-        results = self.gitea.requests_get(Repository.REPO_LABELS % (self.owner.username,self.name))
+        results = self.gitea.requests_get(Repository.REPO_LABELS % (self.owner.username, self.name))
         return [Label.parse_response(self.gitea, result) for result in results]
 
     @classmethod
@@ -893,34 +888,31 @@ class Repository(ApiObject):
         return Repository.parse_response(gitea, result)
 
 
-class UserRepoPermission(ReadonlyApiObject):
-    READ = "read"
-    WRITE = "write"
-    ADMIN = "admin"
-
-    def __init__(self, gitea):
-        super().__init__(gitea)
-
-    def __eq__(self, other):
-        if not isinstance(other, UserRepoPermission):
-            return False
-        return self.permission == other.permission and self.role_name == other.role_name and self.user == other.user
-
-    def __hash__(self):
-        return hash(self.permission) ^ hash(self.role_name) ^ hash(self.user)
-
-    _fields_to_parsers = {
-        "user": lambda gitea, r: User.parse_response(gitea, r),
-    }
-
-
 class Milestone(ApiObject):
-    API_OBJECT = """/repos/{owner}/{repo}/milestones/{number}"""  # <owner, repo>
+    API_OBJECT = """/repos/{owner}/{repo}/milestones/{id}"""
 
-    def __init__(self, gitea):
+    OPEN = "open"
+    CLOSED = "closed"
+
+    # Fields for typechecking
+    closed_at: datetime
+    closed_issues: int
+    created_at: datetime
+    description: str
+    due_on: datetime
+    id: int
+    open_issues: int
+    state: str
+    title: str
+    updated_at: datetime
+
+    # automatically added (but not an api field)
+    repo: "Repository"
+
+    def __init__(self, gitea: "Gitea"):
         super().__init__(gitea)
 
-    def __eq__(self, other):
+    def __eq__(self, other: "ApiObject"):
         if not isinstance(other, Milestone):
             return False
         return self.gitea == other.gitea and self.id == other.id
@@ -930,7 +922,9 @@ class Milestone(ApiObject):
 
     _fields_to_parsers = {
         "closed_at": lambda gitea, t: Util.convert_time(t),
+        "created_at": lambda gitea, t: Util.convert_time(t),
         "due_on": lambda gitea, t: Util.convert_time(t),
+        "updated_at": lambda gitea, t: Util.convert_time(t),
     }
 
     _patchable_fields = {
@@ -941,8 +935,16 @@ class Milestone(ApiObject):
     }
 
     @classmethod
-    def request(cls, gitea: "Gitea", owner: str, repo: str, number: str):
-        return cls._request(gitea, {"owner": owner, "repo": repo, "number": number})
+    def request(cls, gitea: "Gitea", owner: User | Organization, repo: Repository, id: str) -> "Milestone":
+        api_object = cls._request(gitea, {"owner": get_username(owner), "repo": repo.id, "id": id})
+        api_object.repo = repo
+        return api_object
+
+    def commit(self):
+        values = self.get_dirty_fields()
+        args = {"owner": self.repo.owner.username, "repo": self.repo.name, "id": self.id}
+        self.gitea.requests_patch(self.API_OBJECT.format(**args), data=values)
+        self.dirty_fields = {}
 
 
 class Comment(ApiObject):
@@ -961,6 +963,7 @@ class Comment(ApiObject):
         "user": lambda gitea, r: User.parse_response(gitea, r),
         "created_at": lambda gitea, t: Util.convert_time(t),
         "updated_at": lambda gitea, t: Util.convert_time(t),
+        "closed_at": lambda gitea, t: Util.convert_time(t),
     }
 
 
@@ -970,9 +973,7 @@ class Commit(ReadonlyApiObject):
 
     _fields_to_parsers = {
         # NOTE: api may return None for commiters that are no gitea users
-        "author": lambda gitea, u: User.parse_response(gitea, u)
-        if u
-        else None
+        "author": lambda gitea, u: User.parse_response(gitea, u) if u else None
     }
 
     def __eq__(self, other):
@@ -1031,7 +1032,7 @@ class Issue(ApiObject):
 
     _parsers_to_fields = {
         "milestone": lambda m: m.id,
-        "due_date": lambda m: m.strftime('%Y-%m-%dT%H:%M:%S.000Z') if not isinstance(m, str) else m,
+        "due_date": lambda m: m.strftime("%Y-%m-%dT%H:%M:%S.000Z") if not isinstance(m, str) else m,
     }
 
     _patchable_fields = {
@@ -1085,11 +1086,7 @@ class Issue(ApiObject):
         results = self.gitea.requests_get(Issue.GET_COMMENTS % (self.owner.username, self.repo.name))
         allProjectComments = [Comment.parse_response(self.gitea, result) for result in results]
         # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
-        return [
-            comment
-            for comment in allProjectComments
-            if comment.issue_url.endswith("/" + str(self.number))
-        ]
+        return [comment for comment in allProjectComments if comment.issue_url.endswith("/" + str(self.number))]
 
     def set_labels(self, labels: List["Label"]):
         args = {
@@ -1097,9 +1094,7 @@ class Issue(ApiObject):
             "repo": self.repository.name,
             "index": self.number,
         }
-        self.gitea.requests_put(
-            Issue.API_LABELS.format(**args), data={"labels": [l.id for l in labels]}
-        )
+        self.gitea.requests_put(Issue.API_LABELS.format(**args), data={"labels": [l.id for l in labels]})
 
 
 class Team(ApiObject):
@@ -1190,9 +1185,11 @@ class Content(ReadonlyApiObject):
     def __hash__(self):
         return hash(self.repo) ^ hash(self.sha) ^ hash(self.name)
 
+
 class Label(ApiObject):
     API_OBJECT_REPO = """/repos/{owner}/{repo}/labels/{id}"""
     API_OBJECT_ORG = """/orgs/{org}/labels/{id}"""
+
     def __init__(self, gitea):
         super().__init__(gitea)
 
@@ -1200,6 +1197,7 @@ class Label(ApiObject):
         if not isinstance(other, Label):
             return False
         return self.id == other.id
+
     def __hash__(self):
         return hash(self.id)
 
@@ -1238,9 +1236,9 @@ class Label(ApiObject):
     def commit(self):
         values = self.get_dirty_fields()
         url_copy = self.url
-        endpoint = url_copy.replace(self.gitea.url+'/api/v1/','')
-        endpoint_list = endpoint.split('/')
-        if endpoint_list[0] == 'orgs':
+        endpoint = url_copy.replace(self.gitea.url + "/api/v1/", "")
+        endpoint_list = endpoint.split("/")
+        if endpoint_list[0] == "orgs":
             args = {"org": endpoint_list[1], "id": self.id}
             self.gitea.requests_patch(self.API_OBJECT_ORG.format(**args), data=values)
         else:
@@ -1269,6 +1267,28 @@ class MigrationServices:
     GITBUCKET = "7"
     CODEBASE = "8"
 
+
+class UserRepoPermission(ReadonlyApiObject):
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def __eq__(self, other):
+        if not isinstance(other, UserRepoPermission):
+            return False
+        return self.permission == other.permission and self.role_name == other.role_name and self.user == other.user
+
+    def __hash__(self):
+        return hash(self.permission) ^ hash(self.role_name) ^ hash(self.user)
+
+    _fields_to_parsers = {
+        "user": lambda gitea, r: User.parse_response(gitea, r),
+    }
+
+
 @dataclass(frozen=True)
 class RepoUnits:
     code: str = "none"
@@ -1287,15 +1307,14 @@ class RepoUnits:
     @classmethod
     def from_dict(cls, unit_dict: dict[str, str]) -> "RepoUnits":
         """Parse all known repo units from the dictionary returned by the api"""
-        return RepoUnits(
-            **{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}}
-        )
+        return RepoUnits(**{k[5:]: v for k, v in unit_dict.items() if k[5:] in {field.name for field in fields(cls)}})
+
 
 def get_username(user: "str | User | Organization", allow_orgs: bool = True) -> str:
     if isinstance(user, str):
         return user
     elif isinstance(user, User):
-        return user.full_name
+        return user.login
     elif allow_orgs:
-        return user.name
-    raise TypeError(f'Object of type {type(user)} is not a valid owner of anything')
+        return user.username
+    raise TypeError(f"Object of type {type(user)} is not a valid owner of anything")
