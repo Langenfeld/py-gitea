@@ -2,6 +2,9 @@ import logging
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional, Union, Set, TYPE_CHECKING, override, overload, Any
 from dataclasses import dataclass, fields
+
+from immutabledict import immutabledict
+
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
 
@@ -631,8 +634,12 @@ class Repository(ApiObject):
             issues.append(issue)
         return issues
 
-    def get_milestones(self) -> list["Milestone"]:
-        result = self.gitea.requests_get_paginated(f"/repos/{get_username(self.owner)}/{self.name}/milestones")
+    def get_milestones(self, state: str = "all") -> list["Milestone"]:
+        assert state is "open" or state is "closed" or state is "all"
+        result = self.gitea.requests_get_paginated(
+            f"/repos/{get_username(self.owner)}/{self.name}/milestones",
+            params=immutabledict({"state": state}),
+        )
         inject = {"repo": self}
         return [Milestone.parse_response(self.gitea, result, inject) for result in result]
 
@@ -927,6 +934,13 @@ class Milestone(ApiObject):
         "updated_at": lambda gitea, t: Util.convert_time(t),
     }
 
+    _parsers_to_fields = {
+        "closed_at": lambda m: encode_timestamp(m),
+        "created_at": lambda m: encode_timestamp(m),
+        "due_on": lambda m: encode_timestamp(m),
+        "updated_at": lambda m: encode_timestamp(m),
+    }
+
     _patchable_fields = {
         "description",
         "due_on",
@@ -1032,7 +1046,7 @@ class Issue(ApiObject):
 
     _parsers_to_fields = {
         "milestone": lambda m: m.id,
-        "due_date": lambda m: m.strftime("%Y-%m-%dT%H:%M:%S.000Z") if not isinstance(m, str) else m,
+        "due_date": lambda m: encode_timestamp(m),
     }
 
     _patchable_fields = {
@@ -1318,3 +1332,8 @@ def get_username(user: "str | User | Organization", allow_orgs: bool = True) -> 
     elif allow_orgs:
         return user.username
     raise TypeError(f"Object of type {type(user)} is not a valid owner of anything")
+
+
+def encode_timestamp(t: datetime) -> str:
+    """Encode timestamp in gitea-api compatible format"""
+    return t.strftime("%Y-%m-%dT%H:%M:%S.000Z") if not isinstance(t, str) else t

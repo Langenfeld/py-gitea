@@ -1,12 +1,17 @@
 from typing import Any, Type
 from unittest import TestCase
+
+from pip._internal.utils import datetime
+
 from utils import suid
+from datetime import datetime
 
 from gitea import Gitea, User, Organization, Repository, Branch, Milestone
 from gitea import NotFoundException
 
 
-class BasicGiteaFunctions(TestCase):
+class ApiObjectsPopulationTest(TestCase):
+
     def setUp(self):
         self.test_org_name = "org_public_" + suid()
         self.test_user_name = "user_" + suid()
@@ -65,5 +70,9 @@ class BasicGiteaFunctions(TestCase):
         assert mss
         ms = mss[0]
         ms.state = "closed"
+        ms.due_on = datetime.now()
         ms.commit()
+        mss = self.repo.get_milestones(state="all")
+        assert mss
+        ms = mss[0]
         self.__check_fields(Milestone, ms)
