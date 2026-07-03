@@ -1195,7 +1195,7 @@ class Team(ApiObject):
     organization: Organization
     permission: str
     units: list[str]
-    units_map: dict[str, str]
+    units_map: "RepoUnits"
 
     def __init__(self, gitea: "Gitea"):
         super().__init__(gitea)
@@ -1413,14 +1413,19 @@ class UserRepoPermission(ReadonlyApiObject):
 
 @dataclass(frozen=True)
 class RepoUnits:
-    code: str = "none"
-    issues: str = "none"
-    ext_issues: str = "none"
-    wiki: str = "none"
-    pulls: str = "none"
-    releases: str = "none"
-    ext_wiki: str = "none"
-    actions: str = "none"
+    READ = "read"
+    WRITE = "write"
+    NONE = "none"
+    ADMIN = "admin"
+
+    code: str = NONE
+    issues: str = NONE
+    ext_issues: str = NONE
+    wiki: str = NONE
+    pulls: str = NONE
+    releases: str = NONE
+    ext_wiki: str = NONE
+    actions: str = NONE
 
     def to_dict(self) -> dict[str, str]:
         """Return the correctly prefixed (added "repo.") representation for gitea Repository unit Rights"""
