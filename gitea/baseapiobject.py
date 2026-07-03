@@ -1,55 +1,67 @@
+from typing import TYPE_CHECKING, Any
 from .exceptions import (
     ObjectIsInvalid,
-    MissiongEqualyImplementation,
+    MissingEqualyImplementation,
     RawRequestEndpointMissing,
 )
 
+if TYPE_CHECKING:
+    from gitea import Gitea
+
 
 class ReadonlyApiObject:
-    def __init__(self, gitea):
-        self.gitea = gitea
+    API_OBJECT = ""
+
+    def __init__(self, gitea: "Gitea"):
+        self.gitea: "Gitea" = gitea
         self.deleted = False  # set if .delete was called, so that an exception is risen
 
     def __str__(self):
-        return "GiteaAPIObject (%s):" % (type(self))
+        return f"GiteaAPIObject ({type(self)})"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "ApiObject"):
         """Compare only fields that are part of the gitea-data identity"""
-        raise MissiongEqualyImplementation()
+        raise MissingEqualyImplementation()
 
     def __hash__(self):
         """Hash only fields that are part of the gitea-data identity"""
-        raise MissiongEqualyImplementation()
+        raise MissingEqualyImplementation()
 
     _fields_to_parsers = {}
 
     @classmethod
-    def request(cls, gitea):
-        if hasattr("API_OBJECT", cls):
-            return cls._request(gitea)
+    def request(cls, gitea: "Gitea"):
+        if cls.API_OBJECT:
+            return cls._request(gitea, [])
         else:
             raise RawRequestEndpointMissing()
 
     @classmethod
-    def _request(cls, gitea, args):
+    def _request(cls, gitea: "Gitea", args) -> "ReadonlyApiObject":
         result = cls._get_gitea_api_object(gitea, args)
         api_object = cls.parse_response(gitea, result)
         return api_object
 
     @classmethod
-    def _get_gitea_api_object(cls, gitea, args):
+    def _get_gitea_api_object(cls, gitea: "Gitea", args) -> dict:
         """Retrieving an object always as GET_API_OBJECT"""
         return gitea.requests_get(cls.API_OBJECT.format(**args))
 
+    # noinspection PyTypeChecker
     @classmethod
-    def parse_response(cls, gitea, result) -> "ReadonlyApiObject":
-        # gitea.logger.debug("Found api object of type %s (id: %s)" % (type(cls), id))
-        api_object = cls(gitea)
-        cls._initialize(gitea, api_object, result)
+    def parse_response(
+        cls, gitea: "Gitea", result: dict, inject_fields: dict[str, Any] | None = None
+    ) -> "ReadonlyApiObject":
+        api_object: "ApiObject" = cls(gitea)
+        cls._initialize(gitea, api_object, result, inject_fields)
         return api_object
 
     @classmethod
-    def _initialize(cls, gitea, api_object, result):
+    def _initialize(
+        cls, gitea: "Gitea", api_object: "ReadonlyApiObject", result: dict, inject_fields: dict[str, Any] | None = None
+    ):
+        inject_fields = inject_fields or {}
+        # add all fields that are parsable from the request
         for name, value in result.items():
             if name in cls._fields_to_parsers and value is not None:
                 parse_func = cls._fields_to_parsers[name]
@@ -58,11 +70,19 @@ class ReadonlyApiObject:
         # add all patchable fields missing in the request to be writable
         for name in cls._fields_to_parsers.keys():
             if not hasattr(api_object, name):
+                # Checking for property allows api objects to have the correct fields for typing
+                #   being replaced by getters and setters a soon as such object is instantiated
                 cls._add_read_property(name, None, api_object)
+        # add fields injected additionally (usually to keep connection to e.g. repositories and owners)
+        for name, value in inject_fields.items():
+            if not hasattr(api_object, name):
+                cls._add_read_property(name, value, api_object)
 
     @classmethod
-    def _add_read_property(cls, name, value, api_object):
+    def _add_read_property(cls, name: str, value: Any, api_object: "ApiObject"):
         if not hasattr(api_object, name):
+            # Checking for property allows api objects to have the correct fields for typing
+            #   being replaced by getters and setters a soon as such object is instantiated
             setattr(api_object, "_" + name, value)
             prop = property((lambda n: lambda self: self._get_var(n))(name))
             setattr(cls, name, prop)
@@ -83,7 +103,7 @@ class ApiObject(ReadonlyApiObject):
         self._dirty_fields = set()
 
     def commit(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     _parsers_to_fields = {}
 
@@ -98,8 +118,8 @@ class ApiObject(ReadonlyApiObject):
         return dirty_fields_values
 
     @classmethod
-    def _initialize(cls, gitea, api_object, result):
-        super()._initialize(gitea, api_object, result)
+    def _initialize(cls, gitea, api_object, result, inject_fields: dict[str, Any] | None = None):
+        super()._initialize(gitea, api_object, result, inject_fields)
         for name in cls._patchable_fields:
             cls._add_write_property(name, None, api_object)
 

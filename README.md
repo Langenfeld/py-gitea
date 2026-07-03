@@ -1,12 +1,13 @@
 # py-gitea
 
-A very simple API client for Gitea > 1.16.1
-
-This has been somewhat tested (and used), so most things should work as expected.
-
-Note that not the full Swagger-API is accessible. The whole implementation is focused
+A simple API client for Gitea > 1.24 based on the idea that passing around 
+dictionaries and strings is disgusting and needs to be wrapped in something safe.
+So, the whole implementation is focused
 on making access and working with Organizations, Teams, Repositories and Users as pain
 free as possible.
+
+Most functions should be covered by tests or should be in use (somewhere) so things should work as expected. 
+Note that not the full Swagger-API is accessible. 
 
 Originally forked from https://github.com/m301/py-gitea.
 
@@ -20,7 +21,7 @@ from gitea import *
 gitea = Gitea(URL, TOKEN)
 ```
 
-Operations like requesting the Gitea version or authentication user can be requested directly from the `gitea` object:
+Operations like requesting the Gitea version or authentication user can be done directly from the `gitea` object:
 
 ```python
 print("Gitea Version: " + gitea.get_version())
@@ -34,11 +35,18 @@ user = gitea.create_user("Test Testson", "test@test.test", "password")
 ```
 
 All operations on entities in gitea are then accomplished via the according wrapper objects for those entities.
-Each of those objects has a `.request` method that creates an entity according to your gitea instance.
+Each of those objects has a `.request` method that creates an 
+entity according to your gitea instance
 
 ```python
 other_user = User.request(gitea, "OtherUserName")
 print(other_user.username)
+```
+or can be requested from other entities.
+
+```python
+orgs = user.get_orgs()
+print(f"{user.name} is in orgarnisations {orgs}")
 ```
 
 Note that the fields of the User, Organization,... classes are dynamically created at runtime, and thus not visible
@@ -70,6 +78,8 @@ for team in teams:
     for repo in repos:
         print(repo.name)
 ```
+
+If something is missing, feel free to add it :).
 
 ## Installation
 

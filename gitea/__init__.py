@@ -1,7 +1,9 @@
 from .gitea import (
-    Gitea,
+    Gitea
+)
+from .exceptions import (
     NotFoundException,
-    AlreadyExistsException,
+    AlreadyExistsException
 )
 from .apiobject import (
     User,
@@ -17,6 +19,7 @@ from .apiobject import (
     Commit,
     Comment,
     Content,
+    Label,
     MigrationServices,
 )
 
@@ -35,4 +38,5 @@ __all__ = [
     "Commit",
     "Comment",
     "Content",
+    "Label",
 ]
