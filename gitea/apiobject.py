@@ -1003,9 +1003,9 @@ class Comment(ApiObject):
 
 class Commit(ReadonlyApiObject):
 
-    author: dict[str, Any]
+    author: User | None
     commit: dict[str, Any]
-    committer: dict[str, Any]
+    committer: User
     created: datetime
     files: Any
     html_url: str
@@ -1019,7 +1019,8 @@ class Commit(ReadonlyApiObject):
 
     _fields_to_parsers = {
         # NOTE: api may return None for commiters that are no gitea users
-        # "author": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+        "author": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+        "committer": lambda gitea, u: User.parse_response(gitea, u) if u else None,
         "created": lambda gitea, t: decode_timestamp(t),
     }
 
