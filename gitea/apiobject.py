@@ -630,7 +630,7 @@ class Repository(ApiObject):
         return issues
 
     def get_milestones(self, state: str = "all") -> list["Milestone"]:
-        assert state is "open" or state is "closed" or state is "all"
+        assert state == "open" or state == "closed" or state == "all"
         result = self.gitea.requests_get_paginated(
             f"/repos/{get_username(self.owner)}/{self.name}/milestones",
             params=immutabledict({"state": state}),
