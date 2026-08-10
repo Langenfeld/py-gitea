@@ -124,9 +124,13 @@ class RepoFunctions(TestCase, FieldCheckingTestCase):
         rule_name = "wearProtection"
         protection = self.repo.create_branch_protection(rule_name)
         self.assertEqual(protection.rule_name, rule_name)
+        protection.approvals_whitelist_username = [self.user]
+        protection.enable_push = False
+        protection.commit()
         # test
         tprot = self.repo.get_branch_protections()[0]
         self.assertIsNotNone(tprot)
+        self.assertIn(self.user, tprot.approvals_whitelist_username)
         self._check_fields(BranchProtection, tprot)
 
     def __create_random_commit(self, count: int):

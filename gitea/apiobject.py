@@ -471,8 +471,47 @@ class BranchProtection(ApiObject):
         "updated_at": lambda gitea, t: decode_timestamp(t),
     }
 
+    _parsers_to_fields = {
+        "approvals_whitelist_username": lambda m: [user.login for user in m],
+        "force_push_allowlist_usernames": lambda m: [user.login for user in m],
+        "push_whitelist_usernames": lambda m: [user.login for user in m],
+    }
+
     _patchable_fields = {
         "enable_push",
+        "approvals_whitelist_teams",
+        "approvals_whitelist_username",
+        "block_admin_merge_override",
+        "block_on_official_review_requests",
+        "block_on_outdated_branch",
+        "block_on_rejected_reviews",
+        "branch_name",
+        "bypass_allowlist_teams",
+        "bypass_allowlist_usernames",
+        "dismiss_stale_approvals",
+        "enable_approvals_whitelist",
+        "enable_bypass_allowlist",
+        "enable_force_push",
+        "enable_force_push_allowlist",
+        "enable_merge_whitelist",
+        "enable_push",
+        "enable_push_whitelist",
+        "enable_status_check",
+        "force_push_allowlist_deploy_keys",
+        "force_push_allowlist_teams",
+        "force_push_allowlist_usernames",
+        "ignore_stale_approvals",
+        "merge_whitelist_teams",
+        "merge_whitelist_usernames",
+        "priority",
+        "protected_file_patterns",
+        "push_whitelist_deploy_keys",
+        "push_whitelist_teams",
+        "push_whitelist_usernames",
+        "require_signed_commits",
+        "required_approvals",
+        "status_check_contexts",
+        "unprotected_file_patterns",
     }
 
     def __init__(self, gitea):
