@@ -1,7 +1,9 @@
-from typing import Any
 from unittest import TestCase
 
 import base64
+
+from gitea.apiobject import BranchProtection
+from tests.utils import FieldCheckingTestCase
 from utils import suid
 
 from gitea import (
@@ -10,7 +12,7 @@ from gitea import (
 )
 
 
-class RepoFunctions(TestCase):
+class RepoFunctions(TestCase, FieldCheckingTestCase):
     def setUp(self):
         self.test_org_name = "org_public_" + suid()
         self.test_user_name = "user_" + suid()
@@ -30,6 +32,7 @@ class RepoFunctions(TestCase):
         self.user = g.create_user(
             self.test_user_name, f"{self.test_user_name}@example.org", "asdas.passwd", send_notify=False
         )
+        self.version = g.get_version()
         self.org = g.create_org(self.user, self.test_org_name, "some-desc", "loc")
         self.repo = g.create_repo(self.org, self.test_repo_name, "user owned repo with a descr")
 
@@ -115,7 +118,20 @@ class RepoFunctions(TestCase):
         # assert head.author == self.user
         # assert head.committer == self.user # no, this is gitea!
         # TODO: commit typing is thin, add concete types
-        self.__check_fields(Commit, head)
+        self._check_fields(Commit, head)
+
+    def test_branch_protections(self):
+        rule_name = "wearProtection"
+        protection = self.repo.create_branch_protection(rule_name)
+        self.assertEqual(protection.rule_name, rule_name)
+        protection.approvals_whitelist_username = [self.user]
+        protection.enable_push = False
+        protection.commit()
+        # test
+        tprot = self.repo.get_branch_protections()[0]
+        self.assertIsNotNone(tprot)
+        self.assertIn(self.user, tprot.approvals_whitelist_username)
+        self._check_fields(BranchProtection, tprot)
 
     def __create_random_commit(self, count: int):
         TESTFILE_CONENTE = f"TestStringFileContent with some content, will add {count} commits"
@@ -128,22 +144,3 @@ class RepoFunctions(TestCase):
             TESTFILE_CONENTE = TESTFILE_CONENTE + f"\nThis is change number {x}"
             TESTFILE_CONENTE_B64 = base64.b64encode(bytes(TESTFILE_CONENTE, "utf-8"))
             self.repo.change_file("randomcommits.md", readmes[0].sha, content=TESTFILE_CONENTE_B64.decode("ascii"))
-
-    def __check_fields(self, cls, object):
-        """Check if all the fields listed in the object were in deed added to the object.
-        If Gitea returned more than None as a content, also check if the content type is right.
-        Note: this is a copy from field population tests, but don't what to have the git stuff there"""
-        for field, t in cls.__annotations__.items():
-            # There should be a field in the object
-            self.assertTrue(hasattr(object, field), f"Field {field} in {object} should have been accessible.")
-            if t is Any:
-                # don't care further if there is no useful type given
-                continue
-            if isinstance(t, type) and (v := getattr(object, field)):
-                if v is None:
-                    # don't care further if Gitea did not provide a value for the field (but the field is there, yey)
-                    continue
-                # Check if the field has the correct type _if_ a value was given that is not None
-                self.assertIsInstance(
-                    v, t, f"Field {field} in {object} has a value of wrong type assigned ({type(v)})."
-                )

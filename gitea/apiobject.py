@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Tuple, Dict, Sequence, Optional, Union, TYPE_CHECKING, Any
+from typing import List, Tuple, Dict, Sequence, Optional, Union, TYPE_CHECKING, Any, Annotated
 from dataclasses import dataclass, fields
 
 from immutabledict import immutabledict
@@ -421,6 +421,114 @@ class Tag(ReadonlyApiObject):
         return cls._request(gitea, {"owner": owner, "repo": repo, "ref": ref})
 
 
+class BranchProtection(ApiObject):
+    REPO_BRANCH_PROTECTIONS_BY_NAME = """/repos/{owner}/{repo}/branch_protections/{name}"""
+    repo: "Repository"
+
+    approvals_whitelist_teams: list[str]
+    approvals_whitelist_username: list["User"]
+    block_admin_merge_override: bool
+    block_on_official_review_requests: bool
+    block_on_outdated_branch: bool
+    block_on_rejected_reviews: bool
+    branch_name: str
+    bypass_allowlist_teams: Annotated[list[str], "ignore:1.26", "ignore:1.25", "ignore:1.24"]
+    bypass_allowlist_usernames: Annotated[list[str], "ignore:1.26", "ignore:1.25", "ignore:1.24"]
+    created_at: datetime
+    dismiss_stale_approvals: bool
+    enable_approvals_whitelist: bool
+    enable_bypass_allowlist: Annotated[bool, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
+    enable_force_push: bool
+    enable_force_push_allowlist: bool
+    enable_merge_whitelist: bool
+    enable_push: bool
+    enable_push_whitelist: bool
+    enable_status_check: bool
+    force_push_allowlist_deploy_keys: bool
+    force_push_allowlist_teams: list[str]
+    force_push_allowlist_usernames: list["User"]
+    ignore_stale_approvals: bool
+    merge_whitelist_teams: list[str]
+    merge_whitelist_usernames: list[str]
+    priority: int
+    protected_file_patterns: str
+    push_whitelist_deploy_keys: bool
+    push_whitelist_teams: list[str]
+    push_whitelist_usernames: list["User"]
+    require_signed_commits: bool
+    required_approvals: int
+    rule_name: str
+    status_check_contexts: list[str]
+    unprotected_file_patterns: str
+    updated_at: datetime
+
+    _fields_to_parsers = {
+        "approvals_whitelist_username": lambda gitea, ul: [User.request(gitea, u) for u in ul],
+        "force_push_allowlist_usernames": lambda gitea, ul: [User.request(gitea, u) for u in ul],
+        "push_whitelist_usernames": lambda gitea, ul: [User.request(gitea, u) for u in ul],
+        # TODO: teams, but how, we do not know the org/repo here (O.o)
+        "created_at": lambda gitea, t: decode_timestamp(t),
+        "updated_at": lambda gitea, t: decode_timestamp(t),
+    }
+
+    _parsers_to_fields = {
+        "approvals_whitelist_username": lambda m: [user.login for user in m],
+        "force_push_allowlist_usernames": lambda m: [user.login for user in m],
+        "push_whitelist_usernames": lambda m: [user.login for user in m],
+    }
+
+    _patchable_fields = {
+        "enable_push",
+        "approvals_whitelist_teams",
+        "approvals_whitelist_username",
+        "block_admin_merge_override",
+        "block_on_official_review_requests",
+        "block_on_outdated_branch",
+        "block_on_rejected_reviews",
+        "branch_name",
+        "bypass_allowlist_teams",
+        "bypass_allowlist_usernames",
+        "dismiss_stale_approvals",
+        "enable_approvals_whitelist",
+        "enable_bypass_allowlist",
+        "enable_force_push",
+        "enable_force_push_allowlist",
+        "enable_merge_whitelist",
+        "enable_push",
+        "enable_push_whitelist",
+        "enable_status_check",
+        "force_push_allowlist_deploy_keys",
+        "force_push_allowlist_teams",
+        "force_push_allowlist_usernames",
+        "ignore_stale_approvals",
+        "merge_whitelist_teams",
+        "merge_whitelist_usernames",
+        "priority",
+        "protected_file_patterns",
+        "push_whitelist_deploy_keys",
+        "push_whitelist_teams",
+        "push_whitelist_usernames",
+        "require_signed_commits",
+        "required_approvals",
+        "status_check_contexts",
+        "unprotected_file_patterns",
+    }
+
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    def set(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def commit(self):
+        args = {"owner": get_username(self.repo.owner), "repo": self.repo.name, "name": self.rule_name}
+        url = BranchProtection.REPO_BRANCH_PROTECTIONS_BY_NAME.format(**args)
+        values = self.get_dirty_fields()
+        self.gitea.requests_patch(url, data=values)
+        self.dirty_fields = {}
+
+
 class Repository(ApiObject):
     API_OBJECT = """/repos/{owner}/{name}"""  # <owner>, <reponame>
     REPO_MIGRATE = """/repos/migrate"""
@@ -439,6 +547,7 @@ class Repository(ApiObject):
     REPO_TRANSFER = "/repos/{owner}/{repo}/transfer"
     REPO_MILESTONES = """/repos/{owner}/{repo}/milestones"""
     REPO_LABELS = """/repos/%s/%s/labels"""
+    REPO_BRANCH_PROTECTIONS = """/repos/{owner}/{repo}/branch_protections"""
 
     # Fields for typechecking
     allow_fast_forward_only_merge: bool
@@ -459,7 +568,7 @@ class Repository(ApiObject):
     default_branch: Any
     default_delete_branch_after_merge: Any
     default_merge_style: Any
-    # default_target_branch: Any
+    default_target_branch: Annotated[Any, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
     description: Any
     empty: Any
     external_tracker: Any
@@ -493,12 +602,12 @@ class Repository(ApiObject):
     open_pr_counter: Any
     original_url: Any
     owner: "User"
-    # parent: Any
+    parent: Annotated[Any, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
     permissions: Any
     private: Any
     projects_mode: Any
     release_counter: Any
-    # repo_transfer: Any
+    repo_transfer: Annotated[Any, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
     size: Any
     ssh_url: Any
     stars_count: Any
@@ -897,6 +1006,22 @@ class Repository(ApiObject):
             raise Exception("Repository not Migrated... (gitea: %s)" % result["message"])
         return Repository.parse_response(gitea, result)
 
+    def get_branch_protections(self) -> "list[BranchProtection]":
+        args = {"owner": get_username(self.owner), "repo": self.name}
+        url = Repository.REPO_BRANCH_PROTECTIONS.format(**args)
+        results = self.gitea.requests_get(url)
+
+        branch_protections = [
+            BranchProtection.parse_response(self.gitea, result, inject_fields={"repo": self}) for result in results
+        ]
+        return branch_protections
+
+    def create_branch_protection(self, rule_name: str) -> "BranchProtection":
+        args = {"owner": get_username(self.owner), "repo": self.name}
+        url = Repository.REPO_BRANCH_PROTECTIONS.format(**args)
+        results = self.gitea.requests_post(url, data={"rule_name": rule_name})
+        return BranchProtection.parse_response(self.gitea, results, inject_fields={"repo": self})
+
 
 class Milestone(ApiObject):
     API_OBJECT = """/repos/{owner}/{repo}/milestones/{id}"""
@@ -1274,11 +1399,11 @@ class Content(ReadonlyApiObject):
     git_url: str
     html_url: str
     last_author_date: str
-    # last_commit_message: str
+    last_commit_message: Annotated[str, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
     last_commit_sha: str
     last_committer_date: str
-    # lfs_oid: str
-    # lfs_size: str
+    lfs_oid: Annotated[str, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
+    lfs_size: Annotated[str, "ignore:1.26", "ignore:1.25", "ignore:1.24"]
     name: str
     path: str
     sha: str
