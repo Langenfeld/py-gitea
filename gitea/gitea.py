@@ -7,6 +7,7 @@ from requests import Response, Session
 import urllib3
 
 from .apiobject import User, Organization, Repository, Team, RepoUnits
+from .utils import map_username_to_name
 from .exceptions import (
     NotFoundException,
     ConflictException,
@@ -203,7 +204,7 @@ class Gitea:
         if not force_public and self.__is_admin_user():
             path = "/admin/orgs"
         results = self.requests_get_paginated(path)
-        return [Organization.parse_response(self, result) for result in results]
+        return [map_username_to_name(Organization.parse_response(self, result)) for result in results]
 
     def get_user_by_email(self, email: str) -> User | None:
         users = self.get_users()
@@ -334,7 +335,7 @@ class Gitea:
             self.logger.error("Organization not created... (gitea: %s)" % result["message"])
             self.logger.error(result["message"])
             raise Exception("Organization not created... (gitea: %s)" % result["message"])
-        return Organization.parse_response(self, result)
+        return map_username_to_name(Organization.parse_response(self, result))
 
     def create_team(
         self,

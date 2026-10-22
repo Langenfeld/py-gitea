@@ -8,6 +8,7 @@ from gitea import (
     Repository,
     Issue,
     Milestone,
+    Organization
 )
 from gitea import NotFoundException
 
@@ -46,6 +47,14 @@ class RepoFunctions(TestCase):
     def test_create_repo_orgowned(self):
         test_repo_name = f"test_repo_{suid()}"
         repo = self.g.create_repo(self.org, test_repo_name, "descr")
+        assert repo.description == "descr"
+        assert repo.owner == self.org
+        assert repo.name == test_repo_name
+        assert not repo.private
+
+    def test_create_repo_orgowned_via_request(self):
+        test_repo_name = f"test_repo_{suid()}"
+        repo = Organization.request(self.g, self.org.name).create_repo(repo_name=test_repo_name, description='descr')
         assert repo.description == "descr"
         assert repo.owner == self.org
         assert repo.name == test_repo_name
