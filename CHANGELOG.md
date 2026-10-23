@@ -4,6 +4,21 @@
 
 ### ✨ Added
 
+
+### 🐛 Fixed
+
+- Fixed typing for `create_issue`
+- Fixed change in Gitea-Api for teams generation (curretnly limits to newes version of gitea) where "units" were renamed
+
+### 🧹 Internal / Maintenance
+
+
+
+
+## 0.3.3
+
+### ✨ Added
+
 - Added changelog \o/
 - First attempt to add branch protections using `repo.create_branch_protection` and `repo.get_branch_protections`
 
