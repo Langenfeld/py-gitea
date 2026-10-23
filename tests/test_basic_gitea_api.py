@@ -1,3 +1,4 @@
+import re
 from unittest import TestCase
 import pytest
 from utils import suid
@@ -41,7 +42,7 @@ class BasicGiteaFunctions(TestCase):
         assert user.is_admin, "Testuser is not Admin - Tests may fail"
 
     def test_gitea_version(self):
-        assert self.g.get_version().startswith("1."), "No Version String returned"
+        assert re.match(r"[0-9]+\.[0-9]+\.[0-9]+",self.g.get_version()) is not None, "No Version String returned"
 
     def test_fail_get_non_existent_user(self):
         with pytest.raises(NotFoundException) as e:
