@@ -1120,7 +1120,7 @@ class Comment(ApiObject):
 
     _fields_to_parsers = {
         "user": lambda gitea, r: User.parse_response(gitea, r),
-        "original_author": lambda gitea, r: User.parse_response(gitea, r),
+        "original_author": lambda gitea, r: User.parse_response(gitea, r) if r else None,
         "created_at": lambda gitea, t: decode_timestamp(t),
         "updated_at": lambda gitea, t: decode_timestamp(t),
         "closed_at": lambda gitea, t: decode_timestamp(t),
@@ -1170,7 +1170,7 @@ class Commit(ReadonlyApiObject):
 class Issue(ApiObject):
     API_OBJECT = """/repos/{owner}/{repo}/issues/{index}"""  # <owner, repo, index>
     GET_TIME = """/repos/%s/%s/issues/%s/times"""  # <owner, repo, index>
-    GET_COMMENTS = """/repos/%s/%s/issues/comments"""
+    GET_COMMENTS = """/repos/%s/%s/issues/%s/comments"""
     CREATE_ISSUE = """/repos/{owner}/{repo}/issues"""
     API_LABELS = """/repos/{owner}/{repo}/issues/{index}/labels"""
 
@@ -1291,12 +1291,16 @@ class Issue(ApiObject):
         self.gitea.requests_post(path, data={"created": created, "time": int(time), "user_name": user_name})
 
     def get_comments(self) -> List[ApiObject]:
-        results = self.gitea.requests_get(
-            Issue.GET_COMMENTS % (get_username(self.repository.owner), self.repository.name)
-        )
-        allProjectComments = [Comment.parse_response(self.gitea, result) for result in results]
+        uri = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/comments"
+        results = self.gitea.requests_get(uri)
+        issueComments = [Comment.parse_response(self.gitea, result) for result in results]
         # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
-        return [comment for comment in allProjectComments if comment.issue_url.endswith("/" + str(self.number))]
+        return issueComments
+
+    def add_comment(self, body: str) -> None:
+        uri = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/comments"
+        data = {"body": body}
+        self.gitea.requests_post(uri, data=data)
 
     def set_labels(self, labels: List["Label"]):
         args = {

@@ -73,6 +73,25 @@ class BasicGiteaFunctions(TestCase):
         assert issue.title == "TestIssue"
         assert issue.body == "Body text with this issue"
 
+    # TODO: fix issue creation O.o
+    # def test_create_repo_issue(self):
+    #    test_repo_name = f"test_repo_{suid()}"
+    #    repo = self.g.create_repo(self.user, test_repo_name, "user owned repo")
+    #    title = "Another test issue"
+    #    repo.create_issue(title, {self.user}, "long string to describe the issue")
+    #    self.assertIn(title, [i.title for i in self.repo.get_issues()])
+    #    self.assertIn(self.user, {i.title:i for i in self.repo.get_issues()}[title].assignees)
+
+    def test_comment_issue(self):
+        issue = Issue.create_issue(self.g, self.repo, "TestIssue", "Body text with this issue")
+        issue.add_comment("This is a story of")
+        issue.add_comment("a little comment that")
+        issue.add_comment("""wanted to be multi
+        lined 
+        and long.""")
+        comment = issue.get_comments()
+        self.assertEqual(len(comment), 3)
+
     def test_create_repo_labels(self):
         for i in range(0, 3):
             self.repo.create_label(f"label-{i}", generate_random_color())
