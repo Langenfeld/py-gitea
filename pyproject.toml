@@ -1,7 +1,7 @@
 [project]
 name = "py-gitea"
-version = "1.0.0"
-authors = [{name = "Vincent Langenfeld", email= "langenfv@informatik.uni-freiburg.de"}]
+version = "1.0.1"
+authors = [{name = "Annie-Isabell Langenfeld", email= "langenfeld@informatik.uni-freiburg.de"}]
 description = "A python wrapper for the Gitea API"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1
+
+### ✨ Added
+
+- Adding comments to issues
+
+### 🐛 Fixed
+
+- Fixed crash when comment api returned empty authors
 
 ## 1.0.0
 
