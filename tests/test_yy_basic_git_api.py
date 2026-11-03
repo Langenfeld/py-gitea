@@ -1,6 +1,7 @@
 from unittest import TestCase
-
 import base64
+import pytest
+from packaging.version import Version
 
 from gitea.apiobject import BranchProtection
 from tests.utils import FieldCheckingTestCase
@@ -23,7 +24,7 @@ class RepoFunctions(TestCase, FieldCheckingTestCase):
             g = Gitea("http://localhost:3000", open(".token", "r").read().strip())
             print("Gitea Version: " + g.get_version())
             print("API-Token belongs to user: " + g.get_user().username)
-        except:
+        except BaseException:
             assert False, "Gitea could not load. \
                     - Instance running at http://localhost:3000 \
                     - Token at .token   \
@@ -121,6 +122,8 @@ class RepoFunctions(TestCase, FieldCheckingTestCase):
         self._check_fields(Commit, head)
 
     def test_branch_protections(self):
+        if Version(self.g.get_version()) < Version("1.24"):
+            pytest.skip("feature requires version >= 1.24")
         rule_name = "wearProtection"
         protection = self.repo.create_branch_protection(rule_name)
         self.assertEqual(protection.rule_name, rule_name)
