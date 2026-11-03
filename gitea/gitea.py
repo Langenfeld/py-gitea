@@ -344,6 +344,7 @@ class Gitea:
         permission: str = "read",
         can_create_org_repo: bool = False,
         includes_all_repositories: bool = False,
+            # TODO: clean this up correctly
         units: tuple[str, ...] = (
             "repo.code",
             "repo.issues",
@@ -354,8 +355,10 @@ class Gitea:
             "repo.ext_wiki",
         ),
         units_map: RepoUnits = RepoUnits(),
+        visibility: str = "public",
     ) -> Team:
         """Creates a Team."""
+        assert visibility in ["public", "private", "limited"]
         result = self.requests_post(
             Gitea.CREATE_TEAM % org.username,
             data={
@@ -364,8 +367,9 @@ class Gitea:
                 "permission": permission,
                 "can_create_org_repo": can_create_org_repo,
                 "includes_all_repositories": includes_all_repositories,
-                "units": units,
+                #"units": units,
                 "units_map": units_map.to_dict(),
+                "visibility": visibility,
             },
         )
         if "id" in result:

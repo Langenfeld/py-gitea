@@ -772,8 +772,9 @@ class Repository(ApiObject):
     def get_full_name(self) -> str:
         return get_username(self.owner) + "/" + self.name
 
-    def create_issue(self, title, assignees: set[User] | None = None, description: str = "") -> ApiObject:
+    def create_issue(self, title, assignees: set[User] | None = None, description: str = "") -> "Issue":
         assignees = assignees if assignees else set()
+        assignees = {user.login for user in assignees if isinstance(user, User)}
         # TODO: unify with the ISSUE variant of this
         data = {
             "assignees": list(assignees),

@@ -1,5 +1,18 @@
 # Changelog
 
+
+## 1.0.0
+
+### 🔥 [BREAKING] 🔥
+
+- finally commited to semantic versioning ;)
+- changes in Team api may break compatibilty with older versions of gitea (see 2ba3378a)
+
+### 🐛 Fixed
+
+- Fixed typing for `create_issue`
+- Fixed change in Gitea-Api for teams generation (curretnly limits to newes version of gitea) where "units" were renamed
+
 ## 0.3.3
 
 ### ✨ Added
