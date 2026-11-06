@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import List, Tuple, Dict, Sequence, Optional, Union, TYPE_CHECKING, Any, Annotated
 from dataclasses import dataclass, fields
+from xmlrpc.client import DateTime
 
 from immutabledict import immutabledict
 
@@ -1286,16 +1287,26 @@ class Issue(ApiObject):
         )
         self.gitea.requests_delete(path)
 
-    def add_time(self, time: int, created: str | None = None, user_name: User | None = None):
+    def add_time(self, time: int, created: DateTime | None = None, user_name: User | None = None):
         path = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/times"
-        self.gitea.requests_post(path, data={"created": created, "time": int(time), "user_name": user_name})
+        self.gitea.requests_post(path,
+                                 data={"created": encode_timestamp(created) if created else None,
+                                       "time": int(time),
+                                       "user_name": user_name.login if isinstance(user_name, User) else user_name})
 
-    def get_comments(self) -> List[ApiObject]:
+    def get_comments(self) -> list["Comment"]:
         uri = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/comments"
         results = self.gitea.requests_get(uri)
         issueComments = [Comment.parse_response(self.gitea, result) for result in results]
         # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
         return issueComments
+
+    def get_timeline_events(self) -> list["TimelineComment"]:
+        uri = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/timeline"
+        results = self.gitea.requests_get_paginated(uri)
+        timelineComments = [TimelineComment.parse_response(self.gitea, result) for result in results]
+        # Comparing the issue id with the URL seems to be the only (!) way to get to the comments of one issue
+        return timelineComments
 
     def add_comment(self, body: str) -> None:
         uri = f"/repos/{get_username(self.repository.owner)}/{self.repository.name}/issues/{self.number}/comments"
@@ -1504,6 +1515,57 @@ class Label(ApiObject):
             args = {"owner": endpoint_list[1], "repo": endpoint_list[2], "id": self.id}
             self.gitea.requests_patch(self.API_OBJECT_REPO.format(**args), data=values)
         self._dirty_fields = {}
+
+
+class TimelineComment(ApiObject):
+
+    # Fields of Label for Typechecking
+    assignee: User
+    assignee_team: Team
+    body: str
+    created_at: DateTime
+    dependent_issue: Issue
+    html_url: str
+    id: int
+    issue_url: str
+    label: Label
+    milestone: Milestone
+    new_ref: str
+    new_title: str
+    old_milestone: Milestone
+    old_project_id: int
+    old_ref: str
+    old_title: str
+    project_id: int
+    pull_request_url: str
+    ref_action: str
+    ref_comment: Comment
+    ref_commit_sha: str
+    ref_issue: Issue
+    removed_assignee: User
+    resolve_doer: User
+    review_id: str
+    tracked_time: str
+    type: str
+    updated_at: str
+    user: User
+
+    def __init__(self, gitea):
+        super().__init__(gitea)
+
+    _fields_to_parsers = {
+        "assignee": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+        "assignee_team": lambda gitea, t: Team.parse_response(gitea, t) if t else None,
+        "created_at": lambda gitea, t: decode_timestamp(t),
+        "dependent_issue": lambda gitea, i: Issue.parse_response(gitea, i) if i else None,
+        "milestone": lambda gitea, m: Milestone.parse_response(gitea, m) if m else None,
+        "old_milestone": lambda gitea, m: Milestone.parse_response(gitea, m) if m else None,
+        "ref_comment": lambda gitea, c: Comment.parse_response(gitea, c) if c else None,
+        "ref_issue": lambda gitea, i: Issue.parse_response(gitea, i) if i else None,
+        "removed_assignee": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+        "resolve_doer": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+        "user": lambda gitea, u: User.parse_response(gitea, u) if u else None,
+    }
 
 
 class MigrationServices:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+### ✨ Added
+
+- Request timeline events from issues
+
 ## 1.0.1
 
 ### ✨ Added

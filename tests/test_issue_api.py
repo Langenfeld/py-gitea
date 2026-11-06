@@ -1,12 +1,7 @@
+from datetime import datetime
 from unittest import TestCase
 
-import pytest
-
-import base64
 from typing import Final
-
-import pytest
-import uuid
 from utils import suid
 
 from gitea import (
@@ -19,7 +14,6 @@ from gitea import (
     Milestone,
     MigrationServices,
 )
-from gitea import NotFoundException, AlreadyExistsException
 from utils import generate_random_color
 
 
@@ -91,6 +85,17 @@ class BasicGiteaFunctions(TestCase):
         and long.""")
         comment = issue.get_comments()
         self.assertEqual(len(comment), 3)
+
+    def test_comment_time_line(self):
+        issue = Issue.create_issue(self.g, self.repo, "TestIssue", "Body text with this issue")
+        issue.add_comment("This is a story of")
+        issue.add_time(300, datetime.now() , self.user)
+        issue.add_comment("a little comment that")
+        issue.add_comment("""wanted to be multi
+        lined 
+        and long.""")
+        comment = issue.get_timeline_events()
+        self.assertEqual(len(comment), 4)
 
     def test_create_repo_labels(self):
         for i in range(0, 3):
