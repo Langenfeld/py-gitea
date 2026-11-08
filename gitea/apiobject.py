@@ -6,7 +6,7 @@ from xmlrpc.client import DateTime
 
 from immutabledict import immutabledict
 
-from .utils import get_username, decode_timestamp, encode_timestamp
+from .utils import get_username, decode_timestamp, encode_timestamp, map_username_to_name
 from .baseapiobject import ReadonlyApiObject, ApiObject
 from .exceptions import *
 
@@ -52,7 +52,7 @@ class Organization(ApiObject):
 
     @classmethod
     def request(cls, gitea: "Gitea", name: str) -> "Organization":
-        return cls._request(gitea, {"name": name})
+        return map_username_to_name(cls._request(gitea, {"name": name}))
 
     _patchable_fields = {
         "description",

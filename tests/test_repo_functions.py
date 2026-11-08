@@ -1,6 +1,7 @@
 from unittest import TestCase
 import pytest
 from utils import suid
+from packaging.version import Version
 
 from gitea import (
     Gitea,
@@ -8,6 +9,7 @@ from gitea import (
     Repository,
     Issue,
     Milestone,
+    Organization
 )
 from gitea import NotFoundException
 
@@ -23,7 +25,7 @@ class RepoFunctions(TestCase):
             g = Gitea("http://localhost:3000", open(".token", "r").read().strip())
             print("Gitea Version: " + g.get_version())
             print("API-Token belongs to user: " + g.get_user().username)
-        except:
+        except BaseException:
             assert False, "Gitea could not load. \
                     - Instance running at http://localhost:3000 \
                     - Token at .token   \
@@ -51,9 +53,19 @@ class RepoFunctions(TestCase):
         assert repo.name == test_repo_name
         assert not repo.private
 
+    def test_create_repo_orgowned_via_request(self):
+        test_repo_name = f"test_repo_{suid()}"
+        repo = Organization.request(self.g, self.org.name).create_repo(repo_name=test_repo_name, description='descr')
+        assert repo.description == "descr"
+        assert repo.owner == self.org
+        assert repo.name == test_repo_name
+        assert not repo.private
+
     def test_patch_repo(self):
+        if Version(self.g.get_version()) < Version("1.24"):
+            pytest.skip("feature requires version >= 1.24")
         if self.g.get_version().startswith("1.25"):
-            return  # Something is buggy in that version
+            pytest.skip("Something is buggy in that 1.25 version")
         fields = {
             "allow_rebase": False,
             "allow_rebase_explicit": False,
@@ -105,6 +117,8 @@ class RepoFunctions(TestCase):
         assert ms.title == "I love this Milestone"
 
     def test_team_get_org(self):
+        if Version(self.g.get_version()) < Version("1.24"):
+            pytest.skip("feature requires version >= 1.24")
         teams = self.user.get_teams()
         assert self.org.username == teams[0].organization.name
 

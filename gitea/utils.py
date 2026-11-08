@@ -28,3 +28,11 @@ def decode_timestamp(time: str) -> datetime:
         return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S%z")
     except ValueError:
         return datetime.strptime(time[:-3] + "00", "%Y-%m-%dT%H:%M:%S")
+
+
+def map_username_to_name(obj):
+    """Map 'username' attribute on 'name' attribute when does not exist, like organization on old Gitea ( <= 1.24 ?).
+    """
+    if not hasattr(obj, "name") and hasattr(obj, "username"):
+        obj.name = obj.username
+    return obj
