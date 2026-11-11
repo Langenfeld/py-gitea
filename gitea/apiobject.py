@@ -143,7 +143,7 @@ class Organization(ApiObject):
             # returns 204 if its ok, 404 if its not
             self.gitea.requests_get(Organization.ORG_IS_MEMBER % (self.username, username))
             return True
-        except:
+        except BaseException:
             return False
 
     def get_public_members(self):
@@ -537,7 +537,9 @@ class Repository(ApiObject):
     REPO_PERMISSION = """/repos/%s/%s/collaborators/%s/permission"""
     REPO_SEARCH = """/repos/search/%s"""  # <reponame>
     REPO_BRANCHES = """/repos/%s/%s/branches"""  # <owner>, <reponame>
+    REPO_BRANCH = """/repos/%s/%s/branches/%s"""  # <owner>, <reponame>, <branchname>
     REPO_TAGS = """/repos/%s/%s/tags"""  # <owner>, <reponame>
+    REPO_TAG = """/repos/%s/%s/tags/%s"""  # <owner>, <reponame>, <tagname
     REPO_ISSUES = """/repos/{owner}/{repo}/issues"""  # <owner, reponame>
     REPO_DELETE = """/repos/%s/%s"""  # <owner>, <reponame>
     REPO_TIMES = """/repos/%s/%s/times"""  # <owner>, <reponame>
@@ -694,6 +696,10 @@ class Repository(ApiObject):
         result = self.gitea.requests_post(Repository.REPO_BRANCHES % (get_username(self.owner), self.name), data=data)
         return Branch.parse_response(self.gitea, result)
 
+    def delete_branch(self, name: str):
+        """Delete a branch in the repository"""
+        self.gitea.requests_delete(Repository.REPO_BRANCH % (get_username(self.owner), self.name, name))
+
     def get_tags(self) -> List["Tag"]:
         """Get all the Tags of this Repository."""
         results = self.gitea.requests_get_paginated(Repository.REPO_TAGS % (get_username(self.owner), self.name))
@@ -704,6 +710,10 @@ class Repository(ApiObject):
         data = {"tag_name": tag_name, "target": target, "message": message}
         result = self.gitea.requests_post(Repository.REPO_TAGS % (get_username(self.owner), self.name), data=data)
         return Tag.parse_response(self.gitea, result)
+
+    def delete_tag(self, tag_name: str):
+        """Delete tag in the repository"""
+        self.gitea.requests_delete(Repository.REPO_TAG % (get_username(self.owner), self.name, tag_name))
 
     def get_issues(self) -> List["Issue"]:
         """Get all Issues of this Repository (open and closed)"""
@@ -826,7 +836,7 @@ class Repository(ApiObject):
                 % (get_username(self.owner), self.name, get_username(user, allow_orgs=False))
             )
             return True
-        except:
+        except BaseException:
             return False
 
     def get_user_permission(self, username) -> "UserRepoPermission":
