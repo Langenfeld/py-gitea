@@ -23,7 +23,7 @@ class RepoFunctions(TestCase, FieldCheckingTestCase):
             g = Gitea("http://localhost:3000", open(".token", "r").read().strip())
             print("Gitea Version: " + g.get_version())
             print("API-Token belongs to user: " + g.get_user().username)
-        except:
+        except BaseException:
             assert False, "Gitea could not load. \
                     - Instance running at http://localhost:3000 \
                     - Token at .token   \
@@ -48,6 +48,33 @@ class RepoFunctions(TestCase, FieldCheckingTestCase):
         master = [b for b in branches if b.name == "master"]
         assert len(master) > 0
         self.repo.add_branch(master[0], "test_branch")
+
+    def test_delete_branch(self):
+        branches = self.repo.get_branches()
+        master = [b for b in branches if b.name == "master"]
+        assert len(master) > 0
+        self.repo.add_branch(master[0], "test_branch_to_delete")
+        branches = self.repo.get_branches()
+        branch_to_delete = [b for b in branches if b.name == "test_branch_to_delete"]
+        assert len(branch_to_delete) > 0
+        self.repo.delete_branch(branch_to_delete[0].name)
+        branches = self.repo.get_branches()
+        branch_deleted = [b for b in branches if b.name == "test_branch_to_delete"]
+        assert len(branch_deleted) == 0
+
+    def test_delete_tag(self):
+        branches = self.repo.get_branches()
+        master = [b for b in branches if b.name == "master"]
+        assert len(master) > 0
+        tag_name = "test_tag_" + suid()
+        self.repo.add_tag(tag_name, master[0].commit["id"], "test tag")
+        tags = self.repo.get_tags()
+        tag = [t for t in tags if t.name == tag_name]
+        assert len(tag) > 0
+        self.repo.delete_tag(tag_name)
+        tags = self.repo.get_tags()
+        tag_deleted = [t for t in tags if t.name == tag_name]
+        assert len(tag_deleted) == 0
 
     def test_get_accessible_repositories(self):
         user = self.g.get_user_by_name(self.test_user_name)
